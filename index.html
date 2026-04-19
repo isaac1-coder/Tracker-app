@@ -3,46 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SnapTracker</title>
+    <title>SnapTracker Pro</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --snap-yellow: #FFFC00; --snap-blue: #00B6FF; --bg: #f3f3f3; }
-        * { box-sizing: border-box; font-family: 'Avenir Next', 'Helvetica Neue', sans-serif; margin: 0; padding: 0; }
-        body { background: var(--bg); height: 100vh; overflow: hidden; }
+        :root { --snap: #FFFC00; --blue: #00B6FF; --bg: #e5e5e5; }
+        * { box-sizing: border-box; font-family: 'Avenir', sans-serif; margin: 0; padding: 0; }
+        body { background: var(--bg); height: 100vh; width: 100vw; overflow: hidden; }
 
-        /* Auth Screen */
-        #auth-screen { position: fixed; inset: 0; z-index: 10000; background: var(--snap-yellow); display: flex; align-items: center; justify-content: center; }
-        .auth-box { width: 85%; max-width: 350px; text-align: center; }
-        .auth-box h1 { font-size: 40px; margin-bottom: 30px; letter-spacing: -2px; }
-        input { width: 100%; padding: 18px; margin: 8px 0; border-radius: 15px; border: none; background: white; font-size: 16px; outline: none; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .btn-black { width: 100%; padding: 18px; border-radius: 50px; border: none; background: black; color: white; font-weight: bold; font-size: 16px; margin-top: 15px; cursor: pointer; }
+        /* Auth */
+        #auth-screen { position: fixed; inset: 0; z-index: 9999; background: var(--snap); display: flex; align-items: center; justify-content: center; }
+        .auth-box { width: 320px; text-align: center; }
+        input { width: 100%; padding: 15px; margin: 10px 0; border-radius: 12px; border: none; font-size: 16px; outline: none; }
+        .btn-black { width: 100%; padding: 15px; border-radius: 50px; background: black; color: white; border: none; font-weight: 800; cursor: pointer; }
 
-        /* Map UI */
-        #map { height: 100vh; width: 100%; z-index: 1; }
-        .snap-hud { position: absolute; top: 15px; width: 100%; display: flex; justify-content: center; z-index: 1000; pointer-events: none; }
-        .search-bar { background: white; width: 90%; max-width: 400px; padding: 12px 20px; border-radius: 50px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: flex; pointer-events: auto; }
-        .search-bar input { padding: 0; margin: 0; box-shadow: none; font-size: 14px; }
-        
-        /* Chat Sidebar */
-        #chat-panel { position: fixed; bottom: -100%; left: 0; width: 100%; height: 80%; background: white; z-index: 5000; transition: 0.4s ease; border-radius: 30px 30px 0 0; display: flex; flex-direction: column; }
+        /* Map Fixes */
+        #map { height: 100vh; width: 100vw; background: #ddd; position: absolute; top:0; left:0; z-index: 1; }
+
+        /* HUD */
+        .hud { position: absolute; top: 15px; width: 100%; display: flex; flex-direction: column; align-items: center; z-index: 1000; pointer-events: none; }
+        .search { background: white; width: 90%; max-width: 400px; padding: 10px 20px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; pointer-events: auto; }
+        .search input { padding: 0; margin: 0; box-shadow: none; font-size: 14px; }
+
+        /* Clickable Notification */
+        .snap-note { 
+            position: fixed; top: 20px; width: 90%; max-width: 350px; background: white; 
+            padding: 15px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+            z-index: 10000; left: 50%; transform: translateX(-50%); cursor: pointer;
+            border-left: 6px solid var(--blue); animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn { from { top: -100px; } to { top: 20px; } }
+
+        /* Chat Panel */
+        #chat-panel { position: fixed; bottom: -100%; left: 0; width: 100%; height: 85%; background: white; z-index: 5000; transition: 0.4s cubic-bezier(0.1, 0.7, 0.1, 1); border-radius: 30px 30px 0 0; display: flex; flex-direction: column; box-shadow: 0 -10px 30px rgba(0,0,0,0.1); }
         #chat-panel.open { bottom: 0; }
         .chat-header { padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        #chat-msgs { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        #chat-msgs { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
         .msg { padding: 12px 18px; border-radius: 20px; font-size: 15px; max-width: 80%; }
-        .msg.me { align-self: flex-end; background: var(--snap-blue); color: white; }
-        .msg.them { align-self: flex-start; background: #eee; color: black; }
+        .msg.me { align-self: flex-end; background: var(--blue); color: white; border-bottom-right-radius: 5px; }
+        .msg.them { align-self: flex-start; background: #f0f0f0; border-bottom-left-radius: 5px; }
 
         /* Snapchat Markers */
-        .snap-marker { text-align: center; }
-        .snap-avatar { width: 45px; height: 45px; background: var(--snap-yellow); border: 3px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-        .snap-label { background: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 800; margin-top: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: inline-block; }
+        .snap-icon { display: flex; flex-direction: column; align-items: center; }
+        .avatar { width: 44px; height: 44px; background: var(--snap); border: 3px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.1); font-size: 16px; }
+        .label { background: white; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 900; margin-top: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
-        /* Notifications */
-        .snap-note { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 25px; border-radius: 50px; font-weight: bold; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 9999; animation: slideDown 0.3s ease; border-left: 5px solid var(--snap-blue); }
-        @keyframes slideDown { from { top: -100px; } to { top: 20px; } }
+        /* Call Overlay */
+        #call-ui { position: fixed; inset: 0; background: var(--blue); z-index: 9000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; }
+        .call-actions { display: flex; gap: 20px; margin-top: 40px; }
+        .call-btn { padding: 20px 40px; border-radius: 50px; border: none; font-weight: bold; cursor: pointer; font-size: 18px; }
 
-        /* Call UI */
-        #call-ui { position: fixed; inset: 0; background: var(--snap-blue); z-index: 8000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; }
         .hidden { display: none !important; }
     </style>
 </head>
@@ -50,38 +59,38 @@
 
 <div id="auth-screen">
     <div class="auth-box">
-        <h1>👻</h1>
+        <h1 style="font-size: 50px; margin-bottom: 20px;">👻</h1>
         <input id="phone" type="tel" placeholder="Phone Number">
         <input id="pass" type="password" placeholder="Password">
-        <button class="btn-black" onclick="init()">Log In</button>
+        <button class="btn-black" onclick="start()">LOG IN</button>
     </div>
 </div>
 
-<div class="snap-hud hidden" id="hud">
-    <div class="search-bar">
-        <input id="fInput" placeholder="Add friend by phone number...">
-        <button onclick="addF()" style="background:none; border:none; color:var(--snap-blue); font-weight:bold; cursor:pointer">ADD</button>
+<div class="hud hidden" id="hud">
+    <div class="search">
+        <input id="fInput" placeholder="Add phone number...">
+        <button onclick="addF()" style="background:none; border:none; color:var(--blue); font-weight:bold; padding-left:10px;">ADD</button>
     </div>
 </div>
 
 <div id="chat-panel">
     <div class="chat-header">
-        <h2 id="chat-user">Friend</h2>
-        <button onclick="closeChat()" style="background:#eee; border:none; padding:10px 15px; border-radius:20px">Close</button>
+        <h2 id="chat-target">Friend</h2>
+        <button onclick="closeChat()" style="background:#f0f0f0; border:none; padding:10px 20px; border-radius:20px; font-weight:bold;">Close</button>
     </div>
     <div id="chat-msgs"></div>
-    <div style="padding:20px; display:flex; gap:10px">
-        <input id="cInput" placeholder="Send a Chat..." style="background:#eee" onkeydown="if(event.key==='Enter') sendChat()">
-        <button onclick="sendChat()" style="background:var(--snap-blue); color:white; border:none; padding:0 20px; border-radius:20px">Send</button>
+    <div style="padding:20px; display:flex; gap:10px; border-top:1px solid #eee;">
+        <input id="cInput" placeholder="Send a message..." onkeydown="if(event.key==='Enter') sendChat()">
+        <button onclick="sendChat()" style="background:var(--blue); color:white; border:none; padding:0 25px; border-radius:15px; font-weight:bold;">SEND</button>
     </div>
 </div>
 
 <div id="call-ui">
-    <h2 id="call-msg">INCOMING CALL</h2>
-    <h1 id="call-num" style="margin:20px 0; font-size:40px">0000</h1>
-    <div style="display:flex; gap:20px">
-        <button onclick="endC()" style="background:red; color:white; padding:20px 40px; border-radius:50px; border:none">End</button>
-        <button id="accBtn" onclick="accC()" style="background:white; color:var(--snap-blue); padding:20px 40px; border-radius:50px; border:none">Accept</button>
+    <h2 id="call-status">INCOMING CALL</h2>
+    <h1 id="call-phone" style="font-size: 40px; margin: 20px 0;">000000</h1>
+    <div class="call-actions">
+        <button class="call-btn" style="background: #ff3b30; color: white;" onclick="endCall()">DECLINE</button>
+        <button class="call-btn" id="accept-btn" style="background: white; color: var(--blue);" onclick="acceptCall()">ACCEPT</button>
     </div>
 </div>
 
@@ -91,11 +100,11 @@
 <script>
     let ws, map, myPhone, markers = {}, curChat;
 
-    function init() {
+    function start() {
         myPhone = document.getElementById('phone').value;
         const pass = document.getElementById('pass').value;
-        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-        ws = new WebSocket(`${protocol}://${location.host}/ws`);
+        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
 
         ws.onopen = () => ws.send(JSON.stringify({type:'auth', phone:myPhone, pass:pass}));
         ws.onmessage = (e) => {
@@ -103,86 +112,100 @@
             if(d.type==='auth_success') {
                 document.getElementById('auth-screen').classList.add('hidden');
                 document.getElementById('hud').classList.remove('hidden');
-                setupMap();
+                initMap();
                 track();
             }
-            if(d.type==='loc_update') updateMap(d);
-            if(d.type==='note') showNote(d.msg);
-            if(d.type==='chat_msg') renderChat(d.from, d.text);
-            if(d.type==='incoming_call') {
-                document.getElementById('call-ui').style.display='flex';
-                document.getElementById('call-num').innerText = d.from;
-                window.caller = d.from;
+            if(d.type==='loc_update') updateLoc(d);
+            if(d.type==='chat_msg') receiveChat(d.from, d.text);
+            if(d.type==='incoming_call') showCall(d.from);
+            if(d.type==='call_started') {
+                document.getElementById('call-status').innerText = "CONNECTED (3:00)";
+                document.getElementById('accept-btn').classList.add('hidden');
             }
+            if(d.type==='note') showNotification(d.from, d.msg);
         };
     }
 
-    function setupMap() {
-        map = L.map('map', {zoomControl: false}).setView([0,0], 2);
-        // Bright Snapchat-like tiles
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/voyager_all/{z}/{x}/{y}{r}.png').addTo(map);
+    function initMap() {
+        map = L.map('map', {zoomControl: false, attributionControl: false}).setView([0,0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        // Important: Leaflet sometimes doesn't calculate size correctly on mobile
+        setTimeout(() => map.invalidateSize(), 500);
     }
 
     function track() {
         navigator.geolocation.watchPosition(p => {
             ws.send(JSON.stringify({type:'location', lat:p.coords.latitude, lng:p.coords.longitude}));
-        }, null, {enableHighAccuracy:true});
+        }, null, {enableHighAccuracy: true});
     }
 
-    function updateMap(d) {
+    function updateLoc(d) {
         if(d.phone === myPhone) return;
         const pos = [d.lat, d.lng];
         if(!markers[d.phone]) {
-            const snapIcon = L.divIcon({
-                className: 'snap-marker',
-                html: `<div class="snap-avatar">${d.phone.substring(0,2)}</div><div class="snap-label">${d.phone}</div>`
+            const icon = L.divIcon({
+                className: 'snap-icon',
+                html: `<div class="avatar">${d.phone.substring(0,2)}</div><div class="label">${d.phone}</div>`
             });
-            markers[d.phone] = L.marker(pos, {icon: snapIcon}).addTo(map).on('click', () => openChat(d.phone));
+            markers[d.phone] = L.marker(pos, {icon: icon}).addTo(map).on('click', () => openChat(d.phone));
         } else {
             markers[d.phone].setLatLng(pos);
         }
     }
 
-    function addF() {
-        ws.send(JSON.stringify({type:'add_friend', target: document.getElementById('fInput').value}));
-        document.getElementById('fInput').value = "";
-    }
-
     function openChat(p) {
         curChat = p;
-        document.getElementById('chat-user').innerText = p;
+        document.getElementById('chat-target').innerText = p;
         document.getElementById('chat-panel').classList.add('open');
         document.getElementById('chat-msgs').innerHTML = "";
     }
     function closeChat() { document.getElementById('chat-panel').classList.remove('open'); }
 
     function sendChat() {
-        const val = document.getElementById('cInput').value;
-        ws.send(JSON.stringify({type:'chat', target: curChat, text: val}));
-        document.getElementById('cInput').value = "";
+        const input = document.getElementById('cInput');
+        if(!input.value) return;
+        ws.send(JSON.stringify({type:'chat', target: curChat, text: input.value}));
+        input.value = "";
     }
 
-    function renderChat(from, text) {
+    function receiveChat(from, text) {
         const div = document.createElement('div');
         div.className = `msg ${from === myPhone ? 'me' : 'them'}`;
         div.innerText = text;
-        document.getElementById('chat-msgs').appendChild(div);
-        document.getElementById('chat-msgs').scrollTop = 9999;
+        const box = document.getElementById('chat-msgs');
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
         if(from !== myPhone && !document.getElementById('chat-panel').classList.contains('open')) {
-            showNote("New Message from " + from);
+            showNotification(from, text);
         }
     }
 
-    function showNote(m) {
+    function showNotification(from, msg) {
         const n = document.createElement('div');
         n.className = 'snap-note';
-        n.innerText = m;
+        n.innerHTML = `<strong>${from}</strong><br>${msg}`;
+        n.onclick = () => { openChat(from); n.remove(); };
         document.body.appendChild(n);
-        setTimeout(() => n.remove(), 4000);
+        setTimeout(() => n.remove(), 5000);
     }
 
-    function endC() { document.getElementById('call-ui').style.display='none'; }
-    function accC() { document.getElementById('call-msg').innerText = "CONNECTED (3:00)"; }
+    function showCall(from) {
+        document.getElementById('call-phone').innerText = from;
+        document.getElementById('call-ui').style.display = 'flex';
+        window.activeCaller = from;
+    }
+
+    function acceptCall() {
+        ws.send(JSON.stringify({type:'call_accepted', caller: window.activeCaller}));
+    }
+
+    function endCall() { document.getElementById('call-ui').style.display = 'none'; }
+
+    function addF() {
+        const val = document.getElementById('fInput').value;
+        ws.send(JSON.stringify({type:'add_friend', target: val}));
+        document.getElementById('fInput').value = "";
+    }
 </script>
 </body>
 </html>
