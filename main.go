@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -38,11 +39,9 @@ type Packet struct {
 }
 
 var (
-	registry      = make(map[string]*User)
-	regMu         sync.RWMutex
-	upgrader      = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-	activeCall    = "" 
-	callMu        sync.Mutex
+	registry = make(map[string]*User)
+	regMu    sync.RWMutex
+	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 )
 
 func main() {
@@ -52,7 +51,7 @@ func main() {
 	http.HandleFunc("/ws", handleWS)
 	http.Handle("/", http.FileServer(http.Dir("./")))
 
-	log.Printf("Titan Server Online: %s", port)
+	log.Printf("Server online on :%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
@@ -73,7 +72,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var p Packet
-		json.Unmarshal(msg, &p)
+		if err := json.Unmarshal(msg, &p); err != nil { continue }
 
 		regMu.Lock()
 		switch p.Type {
@@ -85,11 +84,9 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				broadcastLoc(u)
 			}
 		case "add_friend":
-			if u != nil {
-				handleFriend(u, p.Target)
-			}
-		case "chat", "react", "alert", "call_invite", "call_resp", "transcription":
-			handleRelay(u, p)
+			if u != nil { handleFriend(u, p.Target) }
+		case "chat", "alert", "call_invite", "call_resp", "transcription":
+			if u != nil { relayPacket(u, p) }
 		}
 		regMu.Unlock()
 	}
@@ -117,16 +114,15 @@ func handleFriend(u *User, target string) {
 		f.Friends[u.Phone] = true
 		f.Conn.WriteJSON(Packet{Type: "loc", Phone: u.Phone, Nick: u.Nickname, Lat: u.Lat, Lng: u.Lng})
 		u.Conn.WriteJSON(Packet{Type: "loc", Phone: f.Phone, Nick: f.Nickname, Lat: f.Lat, Lng: f.Lng})
-		u.Conn.WriteJSON(Packet{Type: "note", Msg: "Added " + f.Nickname})
 	}
 }
 
-func handleRelay(u *User, p Packet) {
+func relayPacket(u *User, p Packet) {
 	if f, ok := registry[p.Target]; ok {
 		p.From = u.Phone
 		p.FromNick = u.Nickname
 		f.Conn.WriteJSON(p)
-		if p.Type == "chat" || p.Type == "react" { u.Conn.WriteJSON(p) }
+		if p.Type == "chat" { u.Conn.WriteJSON(p) }
 	}
 }
 
