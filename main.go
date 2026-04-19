@@ -26,15 +26,16 @@ var (
 	users     = make(map[string]*User)
 	userMutex sync.RWMutex
 	upgrader  = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-	activeCall = ""
-	callMutex sync.Mutex
 )
 
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" { port = "10000" }
+
 	http.HandleFunc("/ws", handleWS)
 	http.Handle("/", http.FileServer(http.Dir("./")))
+
+	log.Printf("Server starting on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
@@ -83,19 +84,20 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 		case "chat":
 			tgt, txt := d["target"].(string), d["text"].(string)
-			if f, ok := users[tgt]; ok {
+			if f, ok := users[tgt]; ok && currentUser != nil {
 				m := map[string]string{"type": "chat", "from": currentUser.Phone, "nick": currentUser.Nickname, "text": txt}
-				f.Conn.WriteJSON(m); currentUser.Conn.WriteJSON(m)
+				f.Conn.WriteJSON(m)
+				currentUser.Conn.WriteJSON(m)
 			}
 
 		case "alert":
-			if f, ok := users[d["target"].(string)]; ok {
+			if f, ok := users[d["target"].(string)]; ok && currentUser != nil {
 				f.Conn.WriteJSON(map[string]string{"type": "ring_alert", "from": currentUser.Nickname})
 			}
 
-		case "call_signal": // FOR WEBRTC AUDIO HANDSHAKE
+		case "call_signal":
 			tgt := d["target"].(string)
-			if f, ok := users[tgt]; ok {
+			if f, ok := users[tgt]; ok && currentUser != nil {
 				d["from"] = currentUser.Phone
 				f.Conn.WriteJSON(d)
 			}
