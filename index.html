@@ -8,52 +8,39 @@
     <style>
         :root { --snap: #FFFC00; --blue: #00B6FF; --red: #FF4B4B; }
         * { box-sizing: border-box; font-family: 'Avenir Next', sans-serif; margin: 0; padding: 0; }
-        body { background: #e5e5e5; height: 100vh; overflow: hidden; }
+        body, html { height: 100%; width: 100%; background: #eee; overflow: hidden; }
 
-        /* Auth Screen */
-        #auth-screen { position: fixed; inset: 0; z-index: 9999; background: var(--snap); display: flex; align-items: center; justify-content: center; text-align: center; }
+        /* Auth */
+        #auth-screen { position: fixed; inset: 0; z-index: 10000; background: var(--snap); display: flex; align-items: center; justify-content: center; text-align: center; }
         .auth-box { width: 320px; }
-        input { width: 100%; padding: 15px; margin: 8px 0; border-radius: 12px; border: none; font-size: 16px; outline: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .btn-black { width: 100%; padding: 15px; border-radius: 50px; background: black; color: white; border: none; font-weight: 800; cursor: pointer; margin-top: 10px; }
+        input { width: 100%; padding: 15px; margin: 8px 0; border-radius: 12px; border: none; font-size: 16px; outline: none; }
+        .btn-black { width: 100%; padding: 15px; border-radius: 50px; background: black; color: white; border: none; font-weight: 800; cursor: pointer; }
 
-        /* Map UI */
-        #map { height: 100vh; width: 100vw; background: #f3f3f3; }
+        /* Map */
+        #map { height: 100vh; width: 100vw; position: absolute; top:0; left:0; z-index: 1; background: #ccc; }
+
+        /* UI elements */
         .hud { position: absolute; top: 15px; width: 100%; display: flex; justify-content: center; z-index: 1000; pointer-events: none; }
         .search { background: white; width: 90%; max-width: 400px; padding: 10px 20px; border-radius: 50px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: flex; pointer-events: auto; }
+        
+        .avatar { width: 50px !important; height: 50px !important; background: var(--snap); border: 4px solid white; border-radius: 50% !important; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 18px; }
+        .nick-label { background: white; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 900; margin-top: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
-        /* CIRCLE MARKER FIX */
-        .snap-marker { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .avatar { 
-            width: 50px !important; height: 50px !important; 
-            background: var(--snap); border: 4px solid white; 
-            border-radius: 50% !important; display: flex; align-items: center; justify-content: center; 
-            font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 18px;
-        }
-        .nick-label { background: white; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 900; margin-top: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); white-space: nowrap; }
-
-        /* SIDEBAR */
-        #sidebar { 
-            position: fixed; right: -100%; top: 0; bottom: 0; width: 350px; 
-            background: white; z-index: 5000; transition: 0.4s cubic-bezier(0.1, 0.7, 0.1, 1); 
-            display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.1);
-        }
+        /* Sidebar */
+        #sidebar { position: fixed; right: -100%; top: 0; bottom: 0; width: 350px; background: white; z-index: 5000; transition: 0.3s ease; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.1); }
         #sidebar.open { right: 0; }
-        .side-header { padding: 25px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fafafa; }
-        .side-tools { padding: 10px 25px; display: flex; gap: 10px; border-bottom: 1px solid #eee; }
-        .tool-btn { flex: 1; padding: 10px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; color: white; }
-
-        #chat-msgs { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 12px 16px; border-radius: 20px; font-size: 14px; max-width: 80%; }
-        .msg.me { align-self: flex-end; background: var(--blue); color: white; border-bottom-right-radius: 4px; }
-        .msg.them { align-self: flex-start; background: #f0f0f0; color: black; border-bottom-left-radius: 4px; }
+        .side-header { padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        #chat-msgs { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .msg { padding: 10px 15px; border-radius: 18px; font-size: 14px; max-width: 80%; }
+        .msg.me { align-self: flex-end; background: var(--blue); color: white; }
+        .msg.them { align-self: flex-start; background: #f0f0f0; }
 
         /* Call Overlay */
         #call-overlay { position: fixed; inset: 0; background: var(--blue); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
-        
-        .snap-note { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 25px; border-radius: 50px; font-weight: bold; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 10000; cursor: pointer; animation: slideDown 0.3s ease; }
-        @keyframes slideDown { from { top: -100px; } to { top: 20px; } }
-        .hidden { display: none !important; }
+        .btn-call { padding: 15px 40px; border-radius: 50px; border: none; font-weight: bold; cursor: pointer; margin: 10px; font-size: 16px; }
 
+        .snap-note { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 25px; border-radius: 50px; font-weight: bold; z-index: 10001; box-shadow: 0 10px 30px rgba(0,0,0,0.2); cursor: pointer; }
+        .hidden { display: none !important; }
         @media (max-width: 400px) { #sidebar { width: 100%; } }
     </style>
 </head>
@@ -61,43 +48,43 @@
 
 <div id="auth-screen">
     <div class="auth-box">
-        <h1 style="font-size: 60px;">👻</h1>
+        <h1 style="font-size: 50px">👻</h1>
         <input id="phone" type="tel" placeholder="Phone Number">
         <input id="nick" type="text" placeholder="Nickname">
         <input id="pass" type="password" placeholder="Password">
-        <button class="btn-black" onclick="handleLogin()">LOG IN</button>
+        <button class="btn-black" onclick="handleAuth()">LOG IN</button>
     </div>
 </div>
 
 <div class="hud hidden" id="hud">
     <div class="search">
-        <input id="fInput" placeholder="Add friend by phone #" style="border:none; width:100%; outline:none">
+        <input id="fInput" placeholder="Add phone #" style="border:none; width:100%; outline:none">
         <button onclick="addF()" style="background:none; border:none; color:var(--blue); font-weight:bold; cursor:pointer">ADD</button>
     </div>
 </div>
 
 <div id="sidebar">
     <div class="side-header">
-        <h2 id="side-nick">Friend</h2>
-        <button onclick="closeSide()" style="background:none; border:none; font-size:20px; cursor:pointer">✕</button>
+        <h2 id="side-nick">Name</h2>
+        <button onclick="closeSide()" style="border:none; background:none; font-size: 20px;">✕</button>
     </div>
-    <div class="side-tools">
-        <button class="tool-btn" style="background:var(--blue)" onclick="startCall()">CALL</button>
-        <button class="tool-btn" style="background:var(--red)" onclick="sendAlert()">ALERT</button>
+    <div style="padding: 10px; display: flex; gap: 5px;">
+        <button onclick="initCall()" style="flex:1; background:var(--blue); color:white; border:none; padding:10px; border-radius:10px; font-weight:bold">CALL</button>
+        <button onclick="sendAlert()" style="flex:1; background:var(--red); color:white; border:none; padding:10px; border-radius:10px; font-weight:bold">ALERT</button>
     </div>
     <div id="chat-msgs"></div>
-    <div style="padding:20px; border-top:1px solid #eee; display:flex; gap:10px">
-        <input id="cInput" placeholder="Send a Chat..." style="background:#f0f0f0; margin:0; outline:none" onkeydown="if(event.key==='Enter') sendChat()">
-        <button onclick="sendChat()" style="background:var(--snap); border:none; padding:0 20px; border-radius:15px; font-weight:bold">SEND</button>
+    <div style="padding:15px; border-top:1px solid #eee; display:flex; gap:10px">
+        <input id="cInput" placeholder="Chat..." style="background:#f0f0f0; outline:none" onkeydown="if(event.key==='Enter') sendChat()">
+        <button onclick="sendChat()" style="background:var(--snap); border:none; padding:0 15px; border-radius:10px; font-weight:bold">SEND</button>
     </div>
 </div>
 
 <div id="call-overlay">
-    <h2>INCOMING CALL</h2>
-    <h1 id="call-nick" style="font-size: 40px; margin: 20px 0;">Friend</h1>
-    <div style="display:flex; gap:20px">
-        <button onclick="endCall()" style="background:red; color:white; padding:15px 40px; border-radius:50px; border:none; font-weight:bold">END</button>
-        <button onclick="acceptCall()" style="background:white; color:var(--blue); padding:15px 40px; border-radius:50px; border:none; font-weight:bold">ACCEPT</button>
+    <h2 id="call-status">INCOMING CALL</h2>
+    <h1 id="call-name" style="font-size: 40px; margin: 20px 0;">Friend</h1>
+    <div>
+        <button class="btn-call" style="background:red; color:white" onclick="endCall()">DECLINE</button>
+        <button id="accept-btn" class="btn-call" style="background:white; color:var(--blue)" onclick="acceptCall()">ACCEPT</button>
     </div>
 </div>
 
@@ -106,34 +93,33 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     let ws, map, myPhone, myNick, markers = {}, curFriendPhone, chatHistory = {};
-    const ringAudio = new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3');
+    const alertSnd = new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3');
 
-    // AUTO-LOGIN ON LOAD
+    // Restore Cache
     window.onload = () => {
-        const cached = JSON.parse(localStorage.getItem('user_cache'));
-        if (cached) {
-            document.getElementById('phone').value = cached.phone;
-            document.getElementById('nick').value = cached.nick;
-            document.getElementById('pass').value = cached.pass;
-            login(cached.phone, cached.nick, cached.pass);
+        const cache = JSON.parse(localStorage.getItem('user_prime'));
+        if(cache) {
+            document.getElementById('phone').value = cache.p;
+            document.getElementById('nick').value = cache.n;
+            document.getElementById('pass').value = cache.s;
+            login(cache.p, cache.n, cache.s);
         }
     };
 
-    function handleLogin() {
+    function handleAuth() {
         const p = document.getElementById('phone').value;
         const n = document.getElementById('nick').value;
         const s = document.getElementById('pass').value;
-        localStorage.setItem('user_cache', JSON.stringify({phone: p, nick: n, pass: s}));
+        localStorage.setItem('user_prime', JSON.stringify({p, n, s}));
         login(p, n, s);
     }
 
     function login(phone, nick, pass) {
-        myPhone = phone;
-        myNick = nick;
+        myPhone = phone; myNick = nick;
         const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
         ws = new WebSocket(`${protocol}://${location.host}/ws`);
 
-        ws.onopen = () => ws.send(JSON.stringify({type:'auth', phone:phone, nick:nick, pass:pass}));
+        ws.onopen = () => ws.send(JSON.stringify({type:'auth', phone, nick, pass}));
         ws.onmessage = (e) => {
             const d = JSON.parse(e.data);
             if(d.type==='auth_success') {
@@ -142,18 +128,23 @@
                 initMap();
                 track();
             }
-            if(d.type==='loc_update') updateMap(d);
+            if(d.type==='loc_update') updateMarkers(d);
             if(d.type==='chat_msg') {
                 const partner = d.fromPhone === myPhone ? curFriendPhone : d.fromPhone;
                 if(!chatHistory[partner]) chatHistory[partner] = [];
                 chatHistory[partner].push(d);
-                if(curFriendPhone === partner) renderHistory();
+                if(curFriendPhone === partner) renderChat();
                 if(d.fromPhone !== myPhone) showNote(d.fromNick, d.text, d.fromPhone);
             }
-            if(d.type==='ring') { ringAudio.play(); showNote("ALERT!", d.from + " is ringing you!", ""); }
+            if(d.type==='ring') { alertSnd.play(); showNote("ALERT", d.from + " is ringing you!", ""); }
             if(d.type==='incoming_call') {
                 document.getElementById('call-overlay').style.display='flex';
-                document.getElementById('call-nick').innerText = d.from;
+                document.getElementById('call-name').innerText = d.from;
+                window.callerId = d.phone;
+            }
+            if(d.type==='call_connected') {
+                document.getElementById('call-status').innerText = "CONNECTED (3:00)";
+                document.getElementById('accept-btn').style.display = 'none';
             }
         };
     }
@@ -162,27 +153,27 @@
         if(map) return;
         map = L.map('map', {zoomControl: false, attributionControl: false}).setView([0,0], 2);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/voyager_all/{z}/{x}/{y}{r}.png').addTo(map);
-        setTimeout(() => map.invalidateSize(), 500);
+        
+        // Force map refresh every few seconds to prevent grey screen
+        setInterval(() => map.invalidateSize(), 2000);
     }
 
     function track() {
         navigator.geolocation.watchPosition(p => {
-            if(ws.readyState === 1) ws.send(JSON.stringify({type:'location', lat:p.coords.latitude, lng:p.coords.longitude}));
-        }, null, {enableHighAccuracy:true});
+            ws.send(JSON.stringify({type:'location', lat:p.coords.latitude, lng:p.coords.longitude}));
+        }, null, {enableHighAccuracy: true});
     }
 
-    function updateMap(d) {
+    function updateMarkers(d) {
         if(d.phone === myPhone) return;
-        const pos = [d.lat, d.lng];
         if(!markers[d.phone]) {
             const icon = L.divIcon({
-                className: 'snap-marker',
-                iconSize: [50, 70],
-                html: `<div class="avatar">${d.nick.substring(0,1)}</div><div class="nick-label">${d.nick}</div>`
+                className: '',
+                html: `<div class="avatar">${d.nick[0]}</div><div class="nick-label">${d.nick}</div>`
             });
-            markers[d.phone] = L.marker(pos, {icon: icon}).addTo(map).on('click', () => openSide(d.phone, d.nick));
+            markers[d.phone] = L.marker([d.lat, d.lng], {icon}).addTo(map).on('click', () => openSide(d.phone, d.nick));
         } else {
-            markers[d.phone].setLatLng(pos);
+            markers[d.phone].setLatLng([d.lat, d.lng]);
         }
     }
 
@@ -190,12 +181,11 @@
         curFriendPhone = phone;
         document.getElementById('side-nick').innerText = nick;
         document.getElementById('sidebar').classList.add('open');
-        renderHistory();
+        renderChat();
     }
+    function closeSide() { document.getElementById('sidebar').classList.remove('open'); }
 
-    function closeSide() { document.getElementById('sidebar').classList.remove('open'); curFriendPhone = null; }
-
-    function renderHistory() {
+    function renderChat() {
         const box = document.getElementById('chat-msgs');
         box.innerHTML = "";
         (chatHistory[curFriendPhone] || []).forEach(m => {
@@ -204,36 +194,34 @@
             div.innerText = m.text;
             box.appendChild(div);
         });
-        box.scrollTop = box.scrollHeight;
+        box.scrollTop = 99999;
     }
 
     function sendChat() {
-        const input = document.getElementById('cInput');
-        if(!input.value || !curFriendPhone) return;
-        ws.send(JSON.stringify({type:'chat', target: curFriendPhone, text: input.value}));
-        input.value = "";
+        const i = document.getElementById('cInput');
+        if(!i.value) return;
+        ws.send(JSON.stringify({type:'chat', target: curFriendPhone, text: i.value}));
+        i.value = "";
     }
 
+    function initCall() { ws.send(JSON.stringify({type:'call_request', target: curFriendPhone})); }
+    function acceptCall() { ws.send(JSON.stringify({type:'call_accepted', caller: window.callerId})); }
+    function endCall() { document.getElementById('call-overlay').style.display='none'; }
     function sendAlert() { ws.send(JSON.stringify({type:'alert', target: curFriendPhone})); }
-    function startCall() { ws.send(JSON.stringify({type:'call_request', target: curFriendPhone})); showNote("Calling...", "Waiting for answer", ""); }
 
     function showNote(title, msg, phone) {
         const n = document.createElement('div');
         n.className = 'snap-note';
-        n.innerHTML = `<strong>${title}</strong><br>${msg}`;
+        n.innerHTML = `<b>${title}</b><br>${msg}`;
         if(phone) n.onclick = () => { openSide(phone, title); n.remove(); };
         document.body.appendChild(n);
         setTimeout(() => n.remove(), 4000);
     }
 
     function addF() {
-        const val = document.getElementById('fInput').value;
-        if(val) ws.send(JSON.stringify({type:'add_friend', target: val}));
+        ws.send(JSON.stringify({type:'add_friend', target: document.getElementById('fInput').value}));
         document.getElementById('fInput').value = "";
     }
-
-    function endCall() { document.getElementById('call-overlay').style.display='none'; }
-    function acceptCall() { document.getElementById('call-overlay').style.background='black'; }
 </script>
 </body>
 </html>
