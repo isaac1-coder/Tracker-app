@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -20,16 +19,15 @@ type User struct {
 	Lng      float64          `json:"lng"`
 	Friends  map[string]bool  `json:"-"`
 	Conn     *websocket.Conn  `json:"-"`
-	mu       sync.Mutex
 }
 
 var (
-	users       = make(map[string]*User)
-	userMutex   sync.RWMutex
-	upgrader    = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	users         = make(map[string]*User)
+	userMutex     sync.RWMutex
+	upgrader      = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	activeCallers = make(map[string]bool)
-	callMutex   sync.Mutex
-	callTimer   *time.Timer
+	callMutex     sync.Mutex
+	callTimer     *time.Timer
 )
 
 func main() {
@@ -39,7 +37,7 @@ func main() {
 	http.HandleFunc("/ws", handleWebSocket)
 	http.Handle("/", http.FileServer(http.Dir("./")))
 
-	log.Printf("Server running on port %s", port)
+	log.Printf("Server starting on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
@@ -58,7 +56,8 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		if err := json.Unmarshal(msg, &data); err != nil { continue }
 
 		userMutex.Lock()
-		msgType := data["type"].(string)
+		msgType, ok := data["type"].(string)
+		if !ok { userMutex.Unlock(); continue }
 
 		switch msgType {
 		case "auth":
@@ -69,8 +68,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 					currentUser = u
 				} else {
 					conn.WriteJSON(map[string]string{"type": "error", "msg": "Wrong password"})
-					userMutex.Unlock()
-					return
+					userMutex.Unlock(); return
 				}
 			} else {
 				currentUser = &User{Phone: phone, Password: pass, Friends: make(map[string]bool)}
@@ -91,10 +89,8 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			if f, ok := users[target]; ok && currentUser != nil {
 				currentUser.Friends[target] = true
 				f.Friends[currentUser.Phone] = true
-				notify(f, "System", "New friend connected: "+currentUser.Phone)
+				notify(f, "System", "Connected with "+currentUser.Phone)
 				notify(currentUser, "System", "Added "+target)
-			} else {
-				notify(currentUser, "Error", "User not found")
 			}
 
 		case "chat":
@@ -115,7 +111,7 @@ func handleCall(u *User, targetPhone string) {
 	defer callMutex.Unlock()
 
 	if len(activeCallers) >= 2 {
-		notify(u, "System", "Lines busy. Max 2 callers globally.")
+		notify(u, "System", "Busy: Max 2 callers global.")
 		return
 	}
 
@@ -125,7 +121,7 @@ func handleCall(u *User, targetPhone string) {
 	activeCallers[u.Phone] = true
 	activeCallers[targetPhone] = true
 	
-	notify(target, "CALL", "Incoming call from "+u.Phone)
+	notify(target, "CALL", "Call from "+u.Phone)
 	notify(u, "CALL", "Call started with "+targetPhone)
 
 	if callTimer != nil { callTimer.Stop() }
@@ -133,8 +129,7 @@ func handleCall(u *User, targetPhone string) {
 		callMutex.Lock()
 		activeCallers = make(map[string]bool)
 		callMutex.Unlock()
-		runtime.GC() // CLEAR RAM
-		log.Println("Call timed out. Memory Purged.")
+		runtime.GC() // Clear RAM manually
 	})
 }
 
@@ -148,10 +143,7 @@ func broadcastUpdate(u *User) {
 	for phone := range u.Friends {
 		if f, ok := users[phone]; ok && f.Conn != nil {
 			f.Conn.WriteJSON(map[string]interface{}{
-				"type": "loc_update",
-				"phone": u.Phone,
-				"lat": u.Lat,
-				"lng": u.Lng,
+				"type": "loc_update", "phone": u.Phone, "lat": u.Lat, "lng": u.Lng,
 			})
 		}
 	}
