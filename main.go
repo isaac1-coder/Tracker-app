@@ -34,7 +34,7 @@ func main() {
 	http.HandleFunc("/ws", handleWS)
 	http.Handle("/", http.FileServer(http.Dir("./")))
 
-	log.Printf("Server starting on port %s", port)
+	log.Printf("Mobile Tracker Online on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
