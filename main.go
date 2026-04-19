@@ -23,21 +23,18 @@ type User struct {
 }
 
 var (
-	users         = make(map[string]*User)
-	userMutex     sync.RWMutex
-	upgrader      = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-	activeCall    = "" // Stores CallerID
-	callMutex     sync.Mutex
+	users     = make(map[string]*User)
+	userMutex sync.RWMutex
+	upgrader  = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	activeCall = ""
+	callMutex sync.Mutex
 )
 
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" { port = "10000" }
-
 	http.HandleFunc("/ws", handleWS)
 	http.Handle("/", http.FileServer(http.Dir("./")))
-
-	log.Printf("SnapTracker Pro Online on :%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
@@ -61,10 +58,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		case "auth":
 			p, n, s := d["phone"].(string), d["nick"].(string), d["pass"].(string)
 			if u, ok := users[p]; ok {
-				if u.Password == s { currentUser = u } else {
-					conn.WriteJSON(map[string]string{"type": "error", "msg": "Invalid Pass"})
-					userMutex.Unlock(); return
-				}
+				if u.Password == s { currentUser = u } else { userMutex.Unlock(); return }
 			} else {
 				currentUser = &User{Phone: p, Nickname: n, Password: s, Friends: make(map[string]bool)}
 				users[p] = currentUser
@@ -91,8 +85,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			tgt, txt := d["target"].(string), d["text"].(string)
 			if f, ok := users[tgt]; ok {
 				m := map[string]string{"type": "chat", "from": currentUser.Phone, "nick": currentUser.Nickname, "text": txt}
-				f.Conn.WriteJSON(m)
-				currentUser.Conn.WriteJSON(m)
+				f.Conn.WriteJSON(m); currentUser.Conn.WriteJSON(m)
 			}
 
 		case "alert":
@@ -100,54 +93,27 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				f.Conn.WriteJSON(map[string]string{"type": "ring_alert", "from": currentUser.Nickname})
 			}
 
-		case "call_init":
+		case "call_signal": // FOR WEBRTC AUDIO HANDSHAKE
 			tgt := d["target"].(string)
-			callMutex.Lock()
-			if activeCall != "" {
-				currentUser.Conn.WriteJSON(map[string]string{"type": "note", "msg": "Line Busy"})
-			} else if f, ok := users[tgt]; ok {
-				activeCall = currentUser.Phone
-				f.Conn.WriteJSON(map[string]string{"type": "incoming_call", "from": currentUser.Nickname, "phone": currentUser.Phone})
+			if f, ok := users[tgt]; ok {
+				d["from"] = currentUser.Phone
+				f.Conn.WriteJSON(d)
 			}
-			callMutex.Unlock()
-
-		case "call_accept":
-			cID := d["caller"].(string)
-			if caller, ok := users[cID]; ok {
-				msg := map[string]string{"type": "call_live", "with": currentUser.Nickname}
-				caller.Conn.WriteJSON(msg)
-				currentUser.Conn.WriteJSON(msg)
-				// Auto-kill in 3 mins
-				time.AfterFunc(3*time.Minute, endCallGlobal)
-			}
-
-		case "call_hangup":
-			endCallGlobal()
 		}
 		userMutex.Unlock()
 	}
 }
 
-func endCallGlobal() {
-	callMutex.Lock()
-	activeCall = ""
-	callMutex.Unlock()
-	for _, u := range users {
-		if u.Conn != nil { u.Conn.WriteJSON(map[string]string{"type": "call_ended"}) }
-	}
-	runtime.GC()
-}
-
 func broadcastLoc(u *User) {
 	for p := range u.Friends {
-		if f, ok := users[p]; ok {
+		if f, ok := users[p]; ok && f.Conn != nil {
 			f.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": u.Phone, "n": u.Nickname, "lat": u.Lat, "lng": u.Lng})
 		}
 	}
 }
 
 func syncPair(a, b *User) {
-	a.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": b.Phone, "n": b.Nickname, "lat": b.Lat, "lng": b.Lng})
-	b.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": a.Phone, "n": a.Nickname, "lat": a.Lat, "lng": a.Lng})
-	a.Conn.WriteJSON(map[string]string{"type": "note", "msg": "Added " + b.Nickname})
+	if a.Conn != nil { a.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": b.Phone, "n": b.Nickname, "lat": b.Lat, "lng": b.Lng}) }
+	if b.Conn != nil { b.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": a.Phone, "n": a.Nickname, "lat": a.Lat, "lng": a.Lng}) }
+	runtime.GC()
 }
