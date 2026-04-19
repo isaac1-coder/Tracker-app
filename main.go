@@ -7,7 +7,6 @@ import (
 	"os"
 	"runtime"
 	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -99,6 +98,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			tgt := d["target"].(string)
 			if f, ok := users[tgt]; ok && currentUser != nil {
 				d["from"] = currentUser.Phone
+				d["fromNick"] = currentUser.Nickname
 				f.Conn.WriteJSON(d)
 			}
 		}
