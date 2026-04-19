@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tracker & Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; }
+        #map { flex-grow: 1; width: 100%; }
+        #ui { position: absolute; top: 10px; left: 10px; z-index: 1000; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .hidden { display: none; }
+        #notifications { position: fixed; bottom: 20px; right: 20px; z-index: 2000; }
+        .note { background: #333; color: white; padding: 10px; margin-top: 5px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+<div id="auth">
+    <input id="phone" placeholder="Phone Number" />
+    <input id="pass" type="password" placeholder="Password" />
+    <button onclick="auth()">Login/Sign-up</button>
+</div>
+
+<div id="ui" class="hidden">
+    <input id="friendPhone" placeholder="Friend's Phone" />
+    <button onclick="addFriend()">Add Friend</button>
+    <hr/>
+    <div id="active-user"></div>
+</div>
+
+<div id="map"></div>
+<div id="notifications"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    let ws, map, markers = {}, myPhone;
+
+    function auth() {
+        myPhone = document.getElementById('phone').value;
+        const pass = document.getElementById('pass').value;
+        ws = new WebSocket(`ws://${location.host}/ws`);
+
+        ws.onopen = () => {
+            ws.send(JSON.stringify({type: 'auth', phone: myPhone, pass: pass}));
+            document.getElementById('auth').classList.add('hidden');
+            document.getElementById('ui').classList.remove('hidden');
+            initMap();
+            startTracking();
+        };
+
+        ws.onmessage = (e) => {
+            const data = JSON.parse(e.data);
+            if(data.type === 'notification') showNote(data.msg);
+            if(data.type === 'update') updateMarker(data.data);
+        };
+    }
+
+    function initMap() {
+        map = L.map('map').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    }
+
+    function startTracking() {
+        navigator.geolocation.watchPosition(pos => {
+            const {latitude, longitude} = pos.coords;
+            ws.send(JSON.stringify({type: 'location', lat: latitude, lng: longitude}));
+        });
+    }
+
+    function updateMarker(data) {
+        if (!markers[data.phone]) {
+            markers[data.phone] = L.marker([data.lat, data.lng]).addTo(map)
+                .bindPopup(`<b>${data.phone}</b><br>
+                    <button onclick="chat('${data.phone}')">Chat</button><br>
+                    <button onclick="call('${data.phone}')">Call (3m Limit)</button>`);
+        } else {
+            markers[data.phone].setLatLng([data.lat, data.lng]);
+        }
+    }
+
+    function addFriend() {
+        const target = document.getElementById('friendPhone').value;
+        ws.send(JSON.stringify({type: 'add_friend', target: target}));
+    }
+
+    function chat(target) {
+        const msg = prompt("Enter message:");
+        if(msg) ws.send(JSON.stringify({type: 'chat', target: target, text: msg}));
+    }
+
+    function call(target) {
+        ws.send(JSON.stringify({type: 'call_request', target: target}));
+    }
+
+    function showNote(msg) {
+        const div = document.createElement('div');
+        div.className = 'note';
+        div.innerText = msg;
+        document.getElementById('notifications').appendChild(div);
+        setTimeout(() => div.remove(), 5000);
+    }
+</script>
+</body>
+</html>
