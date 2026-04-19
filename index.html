@@ -8,67 +8,68 @@
     <style>
         :root { --snap: #FFFC00; --blue: #00B6FF; --red: #FF4B4B; }
         * { box-sizing: border-box; font-family: sans-serif; margin: 0; padding: 0; }
-        body, html { height: 100vh; width: 100vw; background: #222; overflow: hidden; }
+        body, html { height: 100%; width: 100%; overflow: hidden; background: #000; }
         
         #auth { position: fixed; inset: 0; z-index: 10001; background: var(--snap); display: flex; align-items: center; justify-content: center; text-align: center; }
-        #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; background: #333; }
+        #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
 
         .hud { position: absolute; top: 20px; width: 100%; z-index: 1000; display: flex; justify-content: center; pointer-events: none; }
-        .search { background: white; padding: 10px 25px; border-radius: 50px; display: flex; pointer-events: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .search { background: white; padding: 10px 25px; border-radius: 50px; display: flex; pointer-events: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 90%; max-width: 400px; }
         
-        #sidebar { position: fixed; right: -100%; top: 0; bottom: 0; width: 350px; background: white; z-index: 5000; transition: 0.3s cubic-bezier(0.1, 0.7, 0.1, 1); display: flex; flex-direction: column; }
+        #sidebar { position: fixed; right: -100%; top: 0; bottom: 0; width: 350px; background: white; z-index: 5000; transition: 0.3s cubic-bezier(0.1, 0.7, 0.1, 1); display: flex; flex-direction: column; border-left: 1px solid #ddd; }
         #sidebar.open { right: 0; }
         
-        .avatar { width: 50px; height: 50px; background: var(--snap); border: 4px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        .transcript-box { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 12px 20px; border-radius: 12px; z-index: 6000; font-size: 14px; display: none; width: 80%; text-align: center; }
+        .avatar { width: 50px; height: 50px; background: var(--snap); border: 4px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 20px; }
+        .transcript-box { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: white; padding: 12px 24px; border-radius: 15px; z-index: 6000; font-size: 14px; display: none; width: 85%; text-align: center; line-height: 1.4; }
 
         .call-ui { position: fixed; inset: 0; background: var(--blue); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
-        input { width: 100%; padding: 15px; margin: 5px 0; border-radius: 10px; border: none; font-size: 16px; outline: none; }
+        input { width: 100%; padding: 15px; margin: 8px 0; border-radius: 12px; border: none; font-size: 16px; outline: none; background: #fff; }
+        .btn-black { width: 100%; padding: 15px; background: #000; color: #fff; border-radius: 50px; border: none; font-weight: bold; font-size: 16px; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div id="auth">
     <div style="width: 320px;">
-        <h1 style="font-size:60px">👻</h1>
+        <h1 style="font-size:60px; margin-bottom:10px">👻</h1>
         <input id="ph" type="tel" placeholder="Phone Number">
         <input id="ni" type="text" placeholder="Nickname">
         <input id="ps" type="password" placeholder="Password">
-        <button onclick="saveAuth()" style="width:100%; padding:18px; background:black; color:white; border-radius:50px; margin-top:15px; font-weight:bold; border:none; cursor:pointer">LOG IN</button>
+        <button onclick="saveAuth()" class="btn-black">LOG IN</button>
     </div>
 </div>
 
-<div class="hud"><div class="search"><input id="fIn" placeholder="Enter Friend Phone #" style="border:none;outline:none;flex:1"><button onclick="addFriend()" style="border:none;background:none;color:var(--blue);font-weight:bold;cursor:pointer">ADD</button></div></div>
+<div class="hud"><div class="search"><input id="fIn" placeholder="Add phone #" style="border:none;outline:none;flex:1"><button onclick="addFriend()" style="border:none;background:none;color:var(--blue);font-weight:bold;cursor:pointer">ADD</button></div></div>
 
 <div id="sidebar">
     <div style="padding:25px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center">
-        <h2 id="sNick">Name</h2><button onclick="closeSide()" style="border:none;background:none;font-size:24px">✕</button>
+        <h2 id="sNick">Name</h2><button onclick="closeSide()" style="border:none;background:none;font-size:24px;cursor:pointer">✕</button>
     </div>
-    <div style="padding:15px; display:flex; gap:10px; background:#fafafa">
+    <div style="padding:15px; display:flex; gap:10px; background:#f9f9f9">
         <button onclick="startVoiceCall()" style="flex:1; background:var(--blue); color:white; border:none; padding:12px; border-radius:12px; font-weight:bold; cursor:pointer">CALL</button>
         <button onclick="sendAlert()" style="flex:1; background:var(--red); color:white; border:none; padding:12px; border-radius:12px; font-weight:bold; cursor:pointer">ALERT</button>
     </div>
     <div id="msgs" style="flex:1; overflow:auto; padding:20px; display:flex; flex-direction:column; gap:10px"></div>
     <div style="padding:20px; border-top:1px solid #eee; display:flex; gap:10px">
-        <input id="cIn" onkeydown="if(event.key==='Enter') sendChat()" placeholder="Type a message..." style="flex:1; background:#f0f0f0; border-radius:10px; padding:12px">
+        <input id="cIn" onkeydown="if(event.key==='Enter') sendChat()" placeholder="Type message..." style="flex:1; background:#f0f0f0; border-radius:10px; padding:12px">
         <button onclick="sendChat()" style="background:var(--snap); border:none; padding:12px 20px; border-radius:10px; font-weight:bold; cursor:pointer">SEND</button>
     </div>
 </div>
 
 <div class="call-ui" id="callUi">
-    <h2>LIVE VOICE CALL</h2><h1 id="callNick" style="margin:20px 0; font-size:40px">...</h1>
-    <button onclick="location.reload()" style="background:white; color:red; padding:15px 40px; border-radius:50px; border:none; font-weight:bold; cursor:pointer">HANG UP</button>
+    <h2>VOICE CALL ACTIVE</h2><h1 id="callNick" style="margin:20px 0; font-size:42px">...</h1>
+    <button onclick="location.reload()" style="background:white; color:red; padding:15px 45px; border-radius:50px; border:none; font-weight:bold; cursor:pointer">END SESSION</button>
 </div>
 
-<div class="transcript-box" id="transBox">Transcription active...</div>
+<div class="transcript-box" id="transBox">Transcription running...</div>
 <div id="map"></div>
 <audio id="rAudio" autoplay></audio>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     let ws, map, myP, markers = {}, curFriend, pc;
-    const cacheKey = "snap_friends_v2";
-    const authKey = "snap_auth_v2";
+    const friendsKey = "snap_friends_persist";
+    const authKey = "snap_auth_persist";
 
     window.onload = () => {
         const auth = JSON.parse(localStorage.getItem(authKey));
@@ -92,16 +93,17 @@
         ws = new WebSocket(`${proto}://${location.host}/ws`);
         ws.onopen = () => {
             ws.send(JSON.stringify({type:'auth', phone:p, nick:n, pass:s}));
-            const flist = JSON.parse(localStorage.getItem(cacheKey) || "[]");
-            flist.forEach(f => ws.send(JSON.stringify({type:'add_friend', target:f})));
+            // SYNC FRIENDS ON RELOAD
+            const list = JSON.parse(localStorage.getItem(friendsKey) || "[]");
+            list.forEach(f => ws.send(JSON.stringify({type:'add_friend', target:f})));
         };
         ws.onmessage = (e) => {
             const d = JSON.parse(e.data);
-            if(d.type==='auth_ok') { document.getElementById('auth').style.display='none'; initMap(); startTracking(); }
-            if(d.type==='loc') updateMap(d);
+            if(d.type==='auth_ok') { document.getElementById('auth').style.display='none'; initMap(); track(); }
+            if(d.type==='loc') updateMarkers(d);
             if(d.type==='chat') renderChat(d);
             if(d.type==='ring_alert') { new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3').play(); }
-            if(d.type==='call_signal') handleWebRTC(d);
+            if(d.type==='call_signal') handleCallSignal(d);
         };
     }
 
@@ -109,16 +111,17 @@
         if(map) return;
         map = L.map('map', {zoomControl: false}).setView([0,0], 2);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        setTimeout(() => map.invalidateSize(), 800);
+        // FORCE MAP RENDER FIX
+        setInterval(() => map.invalidateSize(), 1000);
     }
 
-    function startTracking() {
+    function track() {
         navigator.geolocation.watchPosition(pos => {
             if(ws.readyState === 1) ws.send(JSON.stringify({type:'location', lat:pos.coords.latitude, lng:pos.coords.longitude}));
-        });
+        }, null, {enableHighAccuracy:true});
     }
 
-    function updateMap(d) {
+    function updateMarkers(d) {
         if(d.p === myP) return;
         if(!markers[d.p]) {
             const icon = L.divIcon({className:'', html:`<div class="avatar">${d.n[0]}</div>`});
@@ -131,15 +134,16 @@
     function addFriend() {
         const v = document.getElementById('fIn').value;
         if(!v) return;
-        const flist = JSON.parse(localStorage.getItem(cacheKey) || "[]");
-        if(!flist.includes(v)) { flist.push(v); localStorage.setItem(cacheKey, JSON.stringify(flist)); }
+        const list = JSON.parse(localStorage.getItem(friendsKey) || "[]");
+        if(!list.includes(v)) { list.push(v); localStorage.setItem(friendsKey, JSON.stringify(list)); }
         ws.send(JSON.stringify({type:'add_friend', target:v}));
         document.getElementById('fIn').value = "";
     }
 
-    // WebRTC Audio Call
+    // WEBRTC CALLING
     async function startVoiceCall() {
         document.getElementById('callUi').style.display='flex';
+        document.getElementById('callNick').innerText = document.getElementById('sNick').innerText;
         pc = new RTCPeerConnection({iceServers: [{urls:'stun:stun.l.google.com:19302'}]});
         const stream = await navigator.mediaDevices.getUserMedia({audio: true});
         stream.getTracks().forEach(t => pc.addTrack(t, stream));
@@ -148,10 +152,10 @@
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         ws.send(JSON.stringify({type:'call_signal', target:curFriend, sdp:offer}));
-        startTranscription();
+        setupTranscription();
     }
 
-    async function handleWebRTC(d) {
+    async function handleCallSignal(d) {
         if(!pc) {
             pc = new RTCPeerConnection({iceServers: [{urls:'stun:stun.l.google.com:19302'}]});
             const stream = await navigator.mediaDevices.getUserMedia({audio: true});
@@ -159,7 +163,8 @@
             pc.onicecandidate = e => e.candidate && ws.send(JSON.stringify({type:'call_signal', target:d.from, candidate:e.candidate}));
             pc.ontrack = e => document.getElementById('rAudio').srcObject = e.streams[0];
             document.getElementById('callUi').style.display='flex';
-            startTranscription();
+            document.getElementById('callNick').innerText = d.fromNick;
+            setupTranscription();
         }
         if(d.sdp) {
             await pc.setRemoteDescription(new RTCSessionDescription(d.sdp));
@@ -171,7 +176,7 @@
         } else if(d.candidate) await pc.addIceCandidate(new RTCIceCandidate(d.candidate));
     }
 
-    function startTranscription() {
+    function setupTranscription() {
         const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
         if(!Speech) return;
         const rec = new Speech();
