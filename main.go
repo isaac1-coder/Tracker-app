@@ -12,21 +12,13 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// ---------------------------------------------------------------- //
-// CONSTANTS & CONFIGURATION
-// ---------------------------------------------------------------- //
-
+// --- Constants ---
 const (
-	writeWait      = 10 * time.Second
-	pongWait       = 60 * time.Second
-	pingPeriod     = (pongWait * 9) / 10
-	maxMessageSize = 512
+	pingPeriod = 20 * time.Second
+	pongWait   = 60 * time.Second
 )
 
-// ---------------------------------------------------------------- //
-// DATA MODELS
-// ---------------------------------------------------------------- //
-
+// --- Models ---
 type User struct {
 	Phone    string          `json:"phone"`
 	Nickname string          `json:"nickname"`
@@ -35,7 +27,7 @@ type User struct {
 	Lng      float64         `json:"lng"`
 	Friends  map[string]bool `json:"-"`
 	Conn     *websocket.Conn `json:"-"`
-	LastSeen time.Time       `json:"last_seen"`
+	InCall   bool            `json:"in_call"`
 }
 
 type Packet struct {
@@ -49,215 +41,134 @@ type Packet struct {
 	Phone    string  `json:"phone,omitempty"`
 	Nick     string  `json:"nick,omitempty"`
 	Pass     string  `json:"pass,omitempty"`
-	MsgID    string  `json:"msgId,omitempty"`
-	ReplyTo  string  `json:"replyTo,omitempty"`
 	RoomID   string  `json:"roomId,omitempty"`
-	Accept   bool    `json:"accept,omitempty"`
+	MsgID    string  `json:"msgId,omitempty"`
 }
 
-// ---------------------------------------------------------------- //
-// GLOBAL REGISTRY
-// ---------------------------------------------------------------- //
-
+// --- Registry ---
 var (
-	users     = make(map[string]*User)
-	userMu    sync.RWMutex
-	upgrader  = websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-		CheckOrigin:     func(r *http.Request) bool { return true },
+	users   = make(map[string]*User)
+	userMu  sync.RWMutex
+	upgrader = websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool { return true },
 	}
 )
 
-// ---------------------------------------------------------------- //
-// SERVER CORE
-// ---------------------------------------------------------------- //
-
 func main() {
 	port := os.Getenv("PORT")
-	if port == "" {
-		port = "10000"
-	}
+	if port == "" { port = "10000" }
 
-	// Route Handlers
-	http.HandleFunc("/ws", handleWebSocket)
+	http.HandleFunc("/ws", handleWS)
+	http.Handle("/", http.FileServer(http.Dir("./")))
+
+	log.Printf("[TITAN] Apex Engine Online on :%s", port)
 	
-	// Static File Server
-	fs := http.FileServer(http.Dir("./"))
-	http.Handle("/", fs)
+	// Background GC to keep Render RAM tiny
+	go func() {
+		for {
+			time.Sleep(2 * time.Minute)
+			runtime.GC()
+		}
+	}()
 
-	log.Printf("[ZENITH] Heavy-Duty Backend Starting on Port %s", port)
-	log.Printf("[SYSTEM] Goroutine Monitoring Active")
-
-	server := &http.Server{
-		Addr:         ":" + port,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-	}
-
-	// Clean up inactive users every 5 minutes
-	go cleanupRoutine()
-
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf("[FATAL] Server Error: %v", err)
-	}
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
-// ---------------------------------------------------------------- //
-// WEBSOCKET LOGIC
-// ---------------------------------------------------------------- //
-
-func handleWebSocket(w http.ResponseWriter, r *http.Request) {
+func handleWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Printf("[ERR] Upgrade Fail: %v", err)
-		return
-	}
+	if err != nil { return }
 	defer conn.Close()
 
-	var sessionUser *User
+	var u *User
 
-	// Configuration for this specific connection
-	conn.SetReadLimit(maxMessageSize)
+	// Setup Heartbeat
 	conn.SetReadDeadline(time.Now().Add(pongWait))
 	conn.SetPongHandler(func(string) error { 
 		conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil 
 	})
 
+	go func() {
+		ticker := time.NewTicker(pingPeriod)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil { return }
+		}
+	}()
+
 	for {
 		_, msg, err := conn.ReadMessage()
-		if err != nil {
-			if sessionUser != nil {
-				log.Printf("[OFFLINE] User %s disconnected", sessionUser.Nickname)
-			}
-			break
-		}
+		if err != nil { break }
 
 		var p Packet
-		if err := json.Unmarshal(msg, &p); err != nil {
-			continue
-		}
+		if err := json.Unmarshal(msg, &p); err != nil { continue }
 
-		// Process Signal
 		userMu.Lock()
 		switch p.Type {
 		case "auth":
-			sessionUser = handleAuth(p, conn)
+			u = handleAuth(p, conn)
 		case "location":
-			if sessionUser != nil {
-				handleLocation(sessionUser, p)
+			if u != nil {
+				u.Lat, u.Lng = p.Lat, p.Lng
+				broadcastLoc(u)
 			}
 		case "add_friend":
-			if sessionUser != nil {
-				handleAddFriend(sessionUser, p)
-			}
-		case "chat", "react", "alert", "call_invite", "call_resp":
-			if sessionUser != nil {
-				relaySignal(sessionUser, p)
-			}
+			if u != nil { handleFriendship(u, p.Target) }
+		case "chat", "alert", "call_req", "call_accept", "call_decline", "call_hangup":
+			if u != nil { relayStrict(u, p) }
 		}
 		userMu.Unlock()
 	}
 }
 
-// ---------------------------------------------------------------- //
-// LOGIC HANDLERS
-// ---------------------------------------------------------------- //
-
 func handleAuth(p Packet, conn *websocket.Conn) *User {
-	u, ok := users[p.Phone]
-	if ok {
-		if u.Password == p.Pass {
-			u.Conn = conn
-			u.LastSeen = time.Now()
+	if exist, ok := users[p.Phone]; ok {
+		if exist.Password == p.Pass {
+			exist.Conn = conn
 			conn.WriteJSON(Packet{Type: "auth_ok"})
-			return u
+			return exist
 		}
-		conn.WriteJSON(Packet{Type: "error", Text: "Incorrect password"})
+		conn.WriteJSON(Packet{Type: "error", Text: "Auth Denied"})
 		return nil
 	}
-
-	// Signup Logic
-	newUser := &User{
-		Phone:    p.Phone,
-		Nickname: p.Nick,
-		Password: p.Pass,
-		Friends:  make(map[string]bool),
-		Conn:     conn,
-		LastSeen: time.Now(),
-	}
-	users[p.Phone] = newUser
+	u := &User{Phone: p.Phone, Nickname: p.Nick, Password: p.Pass, Friends: make(map[string]bool), Conn: conn}
+	users[p.Phone] = u
 	conn.WriteJSON(Packet{Type: "auth_ok"})
-	runtime.GC() // Clear RAM after user creation
-	return newUser
+	return u
 }
 
-func handleLocation(u *User, p Packet) {
-	u.Lat, u.Lng = p.Lat, p.Lng
-	u.LastSeen = time.Now()
-	
-	// Broadcast to friends only
-	for phone := range u.Friends {
-		if f, ok := users[phone]; ok && f.Conn != nil {
-			f.Conn.WriteJSON(Packet{
-				Type: "loc",
-				Phone: u.Phone,
-				Nick: u.Nickname,
-				Lat: u.Lat,
-				Lng: u.Lng,
-			})
-		}
+func handleFriendship(u *User, target string) {
+	if f, ok := users[target]; ok {
+		u.Friends[target] = true
+		f.Friends[u.Phone] = true
+		u.Conn.WriteJSON(Packet{Type: "loc", Phone: f.Phone, Nick: f.Nickname, Lat: f.Lat, Lng: f.Lng})
+		f.Conn.WriteJSON(Packet{Type: "loc", Phone: u.Phone, Nick: u.Nickname, Lat: u.Lat, Lng: u.Lng})
+		u.Conn.WriteJSON(Packet{Type: "note", Text: "Linked with " + f.Nickname})
 	}
 }
 
-func handleAddFriend(u *User, p Packet) {
-	target, ok := users[p.Target]
-	if !ok {
-		u.Conn.WriteJSON(Packet{Type: "note", Text: "User not found in Zenith Database"})
-		return
-	}
-
-	u.Friends[p.Target] = true
-	target.Friends[u.Phone] = true
-
-	// Immediate State Sync
-	u.Conn.WriteJSON(Packet{Type: "loc", Phone: target.Phone, Nick: target.Nickname, Lat: target.Lat, Lng: target.Lng})
-	target.Conn.WriteJSON(Packet{Type: "loc", Phone: u.Phone, Nick: u.Nickname, Lat: u.Lat, Lng: u.Lng})
-	
-	u.Conn.WriteJSON(Packet{Type: "note", Text: "Connection established with " + target.Nickname})
-}
-
-func relaySignal(u *User, p Packet) {
+func relayStrict(u *User, p Packet) {
 	target, ok := users[p.Target]
 	if !ok || target.Conn == nil {
-		u.Conn.WriteJSON(Packet{Type: "note", Text: "User is currently unreachable"})
+		u.Conn.WriteJSON(Packet{Type: "note", Text: "Friend Offline"})
 		return
 	}
 
-	// Prepare Relay Packet
 	p.From = u.Phone
 	p.FromNick = u.Nickname
 
-	// Send to Target
-	target.Conn.WriteJSON(p)
+	// Track Call State for logic
+	if p.Type == "call_req" { u.InCall = true }
+	if p.Type == "call_hangup" { u.InCall = false; target.InCall = false }
 
-	// Acknowledge to Sender for specific types
-	if p.Type == "chat" || p.Type == "react" {
-		u.Conn.WriteJSON(p)
-	}
+	target.Conn.WriteJSON(p)
+	if p.Type == "chat" { u.Conn.WriteJSON(p) }
 }
 
-func cleanupRoutine() {
-	for {
-		time.Sleep(5 * time.Minute)
-		userMu.Lock()
-		for id, u := range users {
-			if u.Conn == nil && time.Since(u.LastSeen) > (24 * time.Hour) {
-				delete(users, id)
-			}
+func broadcastLoc(u *User) {
+	for p := range u.Friends {
+		if f, ok := users[p]; ok && f.Conn != nil {
+			f.Conn.WriteJSON(Packet{Type: "loc", Phone: u.Phone, Nick: u.Nickname, Lat: u.Lat, Lng: u.Lng})
 		}
-		userMu.Unlock()
-		runtime.GC()
 	}
 }
