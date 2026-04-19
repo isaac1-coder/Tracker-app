@@ -23,11 +23,11 @@ type User struct {
 }
 
 var (
-	users       = make(map[string]*User)
-	userMutex   sync.RWMutex
-	upgrader    = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	users         = make(map[string]*User)
+	userMutex     sync.RWMutex
+	upgrader      = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	activeCallers = make(map[string]bool)
-	callMutex   sync.Mutex
+	callMutex     sync.Mutex
 )
 
 func main() {
@@ -37,7 +37,7 @@ func main() {
 	http.HandleFunc("/ws", handleWebSocket)
 	http.Handle("/", http.FileServer(http.Dir("./")))
 
-	log.Printf("Server online on :%s", port)
+	log.Printf("Server starting on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
@@ -62,9 +62,12 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		case "auth":
 			p, nick, pass := data["phone"].(string), data["nick"].(string), data["pass"].(string)
 			if u, ok := users[p]; ok {
-				if u.Password == pass { currentUser = u } else {
+				if u.Password == pass {
+					currentUser = u
+				} else {
 					conn.WriteJSON(map[string]string{"type": "error", "msg": "Wrong Pass"})
-					userMutex.Unlock(); return
+					userMutex.Unlock()
+					return
 				}
 			} else {
 				currentUser = &User{Phone: p, Nickname: nick, Password: pass, Friends: make(map[string]bool)}
@@ -87,21 +90,28 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			if f, ok := users[target]; ok && currentUser != nil {
 				currentUser.Friends[target] = true
 				f.Friends[currentUser.Phone] = true
-				sendLoc(f, currentUser); sendLoc(currentUser, f)
+				sendLoc(f, currentUser)
+				sendLoc(currentUser, f)
 				notify(f, "System", currentUser.Nickname+" added you!")
+				notify(currentUser, "System", "Connected to "+f.Nickname)
 			}
 
 		case "chat":
 			target := data["target"].(string)
 			if f, ok := users[target]; ok && currentUser != nil {
-				msgObj := map[string]string{"type": "chat_msg", "fromPhone": currentUser.Phone, "fromNick": currentUser.Nickname, "text": data["text"].(string)}
+				msgObj := map[string]string{
+					"type": "chat_msg", 
+					"fromPhone": currentUser.Phone, 
+					"fromNick": currentUser.Nickname, 
+					"text": data["text"].(string),
+				}
 				f.Conn.WriteJSON(msgObj)
 				currentUser.Conn.WriteJSON(msgObj)
 			}
 
-		case "alert": // RING DEVICE
+		case "alert":
 			target := data["target"].(string)
-			if f, ok := users[target]; ok {
+			if f, ok := users[target]; ok && currentUser != nil {
 				f.Conn.WriteJSON(map[string]string{"type": "ring", "from": currentUser.Nickname})
 			}
 
@@ -114,6 +124,13 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				activeCallers[currentUser.Phone] = true
 				activeCallers[target] = true
 				f.Conn.WriteJSON(map[string]string{"type": "incoming_call", "from": currentUser.Nickname, "phone": currentUser.Phone})
+				time.AfterFunc(3*time.Minute, func() {
+					callMutex.Lock()
+					delete(activeCallers, currentUser.Phone)
+					delete(activeCallers, target)
+					callMutex.Unlock()
+					runtime.GC()
+				})
 			}
 			callMutex.Unlock()
 		}
@@ -130,5 +147,7 @@ func sendLoc(to, about *User) {
 }
 
 func notify(u *User, from, msg string) {
-	if u.Conn != nil { u.Conn.WriteJSON(map[string]string{"type": "note", "from": from, "msg": msg}) }
+	if u.Conn != nil {
+		u.Conn.WriteJSON(map[string]string{"type": "note", "from": from, "msg": msg})
+	}
 }
