@@ -33,7 +33,7 @@ type Packet struct {
 	Nick     string  `json:"nick,omitempty"`
 	MsgID    string  `json:"msgId,omitempty"`
 	ReplyTo  string  `json:"replyTo,omitempty"`
-	Accept   bool    `json:"accept,omitempty"`
+	RoomID   string  `json:"roomId,omitempty"`
 }
 
 var (
@@ -49,7 +49,7 @@ func main() {
 	http.HandleFunc("/ws", handleWS)
 	http.Handle("/", http.FileServer(http.Dir("./")))
 
-	log.Printf("Titan Server Online: %s", port)
+	log.Printf("SnapTracker Titan Online on :%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
@@ -61,13 +61,8 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	var u *User
 
 	for {
-		mt, msg, err := conn.ReadMessage()
+		_, msg, err := conn.ReadMessage()
 		if err != nil { break }
-
-		if mt == websocket.BinaryMessage && u != nil {
-			relayAudio(u, msg)
-			continue
-		}
 
 		var p Packet
 		if err := json.Unmarshal(msg, &p); err != nil { continue }
@@ -83,7 +78,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			}
 		case "add_friend":
 			if u != nil { handleFriend(u, p.Target) }
-		case "chat", "alert", "call_invite", "call_resp", "transcription":
+		case "chat", "react", "alert", "call_invite", "call_resp":
 			if u != nil { relayPacket(u, p) }
 		}
 		regMu.Unlock()
@@ -120,15 +115,7 @@ func relayPacket(u *User, p Packet) {
 		p.From = u.Phone
 		p.FromNick = u.Nickname
 		f.Conn.WriteJSON(p)
-		if p.Type == "chat" { u.Conn.WriteJSON(p) }
-	}
-}
-
-func relayAudio(u *User, data []byte) {
-	for p := range u.Friends {
-		if f, ok := registry[p]; ok && f.Conn != nil {
-			f.Conn.WriteMessage(websocket.BinaryMessage, data)
-		}
+		if p.Type == "chat" || p.Type == "react" { u.Conn.WriteJSON(p) }
 	}
 }
 
