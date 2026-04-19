@@ -21,21 +21,6 @@ type User struct {
 	Conn     *websocket.Conn `json:"-"`
 }
 
-type Packet struct {
-	Type     string  `json:"type"`
-	From     string  `json:"from,omitempty"`
-	FromNick string  `json:"fromNick,omitempty"`
-	Target   string  `json:"target,omitempty"`
-	Text     string  `json:"text,omitempty"`
-	Lat      float64 `json:"lat,omitempty"`
-	Lng      float64 `json:"lng,omitempty"`
-	Phone    string  `json:"phone,omitempty"`
-	Nick     string  `json:"nick,omitempty"`
-	MsgID    string  `json:"msgId,omitempty"`
-	ReplyTo  string  `json:"replyTo,omitempty"`
-	RoomID   string  `json:"roomId,omitempty"`
-}
-
 var (
 	registry = make(map[string]*User)
 	regMu    sync.RWMutex
@@ -49,7 +34,7 @@ func main() {
 	http.HandleFunc("/ws", handleWS)
 	http.Handle("/", http.FileServer(http.Dir("./")))
 
-	log.Printf("SnapTracker Titan Online on :%s", port)
+	log.Printf("Zenith Server Online: %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
@@ -64,65 +49,64 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		_, msg, err := conn.ReadMessage()
 		if err != nil { break }
 
-		var p Packet
-		if err := json.Unmarshal(msg, &p); err != nil { continue }
+		var d map[string]interface{}
+		if err := json.Unmarshal(msg, &d); err != nil { continue }
+		t, _ := d["type"].(string)
 
 		regMu.Lock()
-		switch p.Type {
+		switch t {
 		case "auth":
-			u = handleAuth(p, conn)
+			p, n, s := d["phone"].(string), d["nick"].(string), d["pass"].(string)
+			if exist, ok := registry[p]; ok {
+				if exist.Password == s {
+					u = exist
+					u.Conn = conn
+					conn.WriteJSON(map[string]string{"type": "auth_ok"})
+				} else {
+					conn.WriteJSON(map[string]string{"type": "error", "msg": "Wrong Pass"})
+				}
+			} else {
+				u = &User{Phone: p, Nickname: n, Password: s, Friends: make(map[string]bool), Conn: conn}
+				registry[p] = u
+				conn.WriteJSON(map[string]string{"type": "auth_ok"})
+			}
 		case "location":
 			if u != nil {
-				u.Lat, u.Lng = p.Lat, p.Lng
+				u.Lat, u.Lng = d["lat"].(float64), d["lng"].(float64)
 				broadcastLoc(u)
 			}
 		case "add_friend":
-			if u != nil { handleFriend(u, p.Target) }
-		case "chat", "react", "alert", "call_invite", "call_resp":
-			if u != nil { relayPacket(u, p) }
+			if u != nil {
+				if f, ok := registry[d["target"].(string)]; ok {
+					u.Friends[f.Phone] = true
+					f.Friends[u.Phone] = true
+					syncPair(u, f)
+				}
+			}
+		case "chat", "react", "alert", "webrtc_signal":
+			if u != nil {
+				if f, ok := registry[d["target"].(string)]; ok && f.Conn != nil {
+					d["from"] = u.Phone
+					d["fromNick"] = u.Nickname
+					f.Conn.WriteJSON(d)
+					if t == "chat" || t == "react" { u.Conn.WriteJSON(d) }
+				}
+			}
 		}
 		regMu.Unlock()
-	}
-}
-
-func handleAuth(p Packet, conn *websocket.Conn) *User {
-	if u, ok := registry[p.Phone]; ok {
-		if u.Password == p.Text {
-			u.Conn = conn
-			conn.WriteJSON(Packet{Type: "auth_ok"})
-			return u
-		}
-		return nil
-	}
-	u := &User{Phone: p.Phone, Nickname: p.Nick, Password: p.Text, Friends: make(map[string]bool), Conn: conn}
-	registry[p.Phone] = u
-	conn.WriteJSON(Packet{Type: "auth_ok"})
-	runtime.GC()
-	return u
-}
-
-func handleFriend(u *User, target string) {
-	if f, ok := registry[target]; ok {
-		u.Friends[target] = true
-		f.Friends[u.Phone] = true
-		f.Conn.WriteJSON(Packet{Type: "loc", Phone: u.Phone, Nick: u.Nickname, Lat: u.Lat, Lng: u.Lng})
-		u.Conn.WriteJSON(Packet{Type: "loc", Phone: f.Phone, Nick: f.Nickname, Lat: f.Lat, Lng: f.Lng})
-	}
-}
-
-func relayPacket(u *User, p Packet) {
-	if f, ok := registry[p.Target]; ok {
-		p.From = u.Phone
-		p.FromNick = u.Nickname
-		f.Conn.WriteJSON(p)
-		if p.Type == "chat" || p.Type == "react" { u.Conn.WriteJSON(p) }
 	}
 }
 
 func broadcastLoc(u *User) {
 	for p := range u.Friends {
 		if f, ok := registry[p]; ok && f.Conn != nil {
-			f.Conn.WriteJSON(Packet{Type: "loc", Phone: u.Phone, Nick: u.Nickname, Lat: u.Lat, Lng: u.Lng})
+			f.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": u.Phone, "n": u.Nickname, "lat": u.Lat, "lng": u.Lng})
 		}
 	}
+}
+
+func syncPair(a, b *User) {
+	a.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": b.Phone, "n": b.Nickname, "lat": b.Lat, "lng": b.Lng})
+	b.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": a.Phone, "n": a.Nickname, "lat": a.Lat, "lng": a.Lng})
+	runtime.GC()
 }
