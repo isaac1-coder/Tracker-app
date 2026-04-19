@@ -3,90 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Tracker Pro Professional</title>
+    <title>SnapTracker Prime</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root {
-            --snap: #FFFC00; --blue: #0084FF; --red: #FF3B30; --dark: #121212; --glass: rgba(30, 30, 30, 0.9);
-        }
-        * { box-sizing: border-box; font-family: -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
-        body, html { height: 100dvh; width: 100vw; margin: 0; background: #000; overflow: hidden; position: fixed; }
+        :root { --yellow: #FFFC00; --blue: #00B6FF; --red: #FF3B30; --dark: #121212; --glass: rgba(255, 255, 255, 0.15); }
+        * { box-sizing: border-box; font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body, html { height: 100dvh; width: 100vw; overflow: hidden; background: #000; position: fixed; }
         
-        #map { position: absolute; inset: 0; z-index: 1; background: #111; }
+        /* THE MAP FIX - Guaranteed visibility */
+        #map { position: absolute; inset: 0; z-index: 1; background: #222; width: 100%; height: 100%; }
 
-        /* AUTH MODULE */
-        #auth-gate {
-            position: fixed; inset: 0; z-index: 10000; background: var(--snap);
-            display: flex; align-items: center; justify-content: center;
-            transition: transform 0.5s cubic-bezier(0.77, 0, 0.175, 1);
-        }
-        .auth-card { width: 85%; max-width: 400px; text-align: center; }
-        .auth-card h1 { font-size: 72px; margin-bottom: 20px; }
-        input { 
-            width: 100%; padding: 20px; margin: 10px 0; border-radius: 18px; border: none; 
-            font-size: 18px; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-        }
-        .primary-btn { 
-            width: 100%; padding: 20px; background: #000; color: #fff; 
-            border-radius: 50px; border: none; font-weight: 800; font-size: 18px; margin-top: 15px; 
-        }
+        /* AUTH UI */
+        #auth-gate { position: fixed; inset: 0; z-index: 10000; background: var(--yellow); display: flex; align-items: center; justify-content: center; transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .auth-card { width: 85%; max-width: 380px; text-align: center; }
+        .auth-card h1 { font-size: 80px; margin-bottom: 20px; }
+        input { width: 100%; padding: 18px; margin: 10px 0; border-radius: 15px; border: none; font-size: 16px; outline: none; background: white; color: #000; }
+        .btn-black { width: 100%; padding: 20px; background: black; color: white; border-radius: 50px; border: none; font-weight: 900; font-size: 18px; cursor: pointer; margin-top: 15px; }
 
-        /* NAVIGATION & HUD */
-        .hud-top {
-            position: absolute; top: 20px; width: 100%; z-index: 1000;
-            display: flex; justify-content: center; pointer-events: none;
-        }
-        .search-tray {
-            background: var(--glass); backdrop-filter: blur(25px); padding: 5px 20px;
-            border-radius: 50px; display: flex; align-items: center; width: 90%;
-            max-width: 500px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); pointer-events: auto;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .search-tray input { background: transparent; color: white; box-shadow: none; font-size: 15px; flex: 1; }
+        /* NAVIGATION HUD */
+        .hud-top { position: absolute; top: env(safe-area-inset-top, 20px); width: 100%; z-index: 1000; display: flex; justify-content: center; pointer-events: none; }
+        .search-bar { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); padding: 5px 20px; border-radius: 50px; display: flex; align-items: center; width: 90%; max-width: 450px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); pointer-events: auto; }
+        .search-bar input { background: transparent; box-shadow: none; padding: 12px; margin: 0; color: #000; }
 
-        /* SIDEBAR CHAT */
-        #chat-sidebar {
-            position: fixed; left: 0; bottom: -100%; width: 100%; height: 95dvh;
-            background: #181818; z-index: 5000; border-radius: 35px 35px 0 0;
-            display: flex; flex-direction: column; transition: 0.4s cubic-bezier(0.1, 0.7, 0.1, 1);
-            color: #fff; box-shadow: 0 -15px 50px rgba(0,0,0,0.6);
-        }
+        /* SNAP CHAT INTERFACE */
+        #chat-sidebar { position: fixed; left: 0; bottom: -100%; width: 100%; height: 94dvh; background: white; z-index: 5000; transition: 0.4s cubic-bezier(0.1, 0.7, 0.1, 1); border-radius: 30px 30px 0 0; display: flex; flex-direction: column; box-shadow: 0 -20px 60px rgba(0,0,0,0.4); }
         #chat-sidebar.open { bottom: 0; }
-        .chat-header { padding: 25px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
-        .chat-actions { display: flex; gap: 12px; padding: 15px 25px; background: #222; }
-        .action-btn { flex: 1; padding: 15px; border-radius: 15px; border: none; font-weight: 800; color: #fff; cursor: pointer; }
+        .chat-head { padding: 25px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .chat-tools { display: flex; gap: 12px; padding: 15px 25px; background: #f9f9f9; }
+        .tool-btn { flex: 1; padding: 14px; border-radius: 15px; border: none; font-weight: 800; color: white; cursor: pointer; font-size: 12px; letter-spacing: 1px; }
 
-        #msg-feed { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
-        .bubble { padding: 14px 20px; border-radius: 22px; font-size: 16px; max-width: 80%; line-height: 1.5; background: #333; position: relative; }
-        .bubble.me { align-self: flex-end; background: var(--blue); }
-        .bubble .quote { font-size: 12px; opacity: 0.5; border-left: 2px solid #fff; padding-left: 8px; margin-bottom: 5px; display: block; }
+        #msg-feed { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .bubble { padding: 12px 18px; border-radius: 20px; font-size: 15px; max-width: 80%; line-height: 1.4; position: relative; background: #eee; color: #000; }
+        .bubble.me { align-self: flex-end; background: var(--blue); color: white; border-bottom-right-radius: 4px; }
+        .bubble .reply { font-size: 11px; opacity: 0.6; display: block; background: rgba(0,0,0,0.05); padding: 5px; border-radius: 8px; margin-bottom: 5px; }
 
-        /* NOTIFICATIONS */
-        #notif-hub { position: fixed; bottom: 30px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
-        .toast {
-            background: #fff; color: #000; padding: 15px 25px; border-radius: 50px;
-            font-weight: 800; box-shadow: 0 10px 40px rgba(0,0,0,0.4); pointer-events: auto;
-            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer;
-            border-left: 8px solid var(--blue);
-        }
-        @keyframes popIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
+        /* NOTIFICATIONS & CALLS */
+        #toast-hub { position: fixed; bottom: 30px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; align-items: flex-end; }
+        .toast { background: white; color: black; padding: 15px 25px; border-radius: 50px; font-weight: 800; box-shadow: 0 10px 30px rgba(0,0,0,0.3); pointer-events: auto; animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); border-left: 6px solid var(--blue); }
+        @keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
 
-        /* VOIP UI */
-        #voip-screen {
-            position: fixed; inset: 0; background: var(--blue); z-index: 9000;
-            display: none; flex-direction: column; align-items: center; justify-content: center;
-        }
-        .voip-nick { font-size: 52px; font-weight: 900; margin: 30px 0; color: #fff; }
-        .transcription { margin-top: 40px; background: rgba(0,0,0,0.4); padding: 20px; border-radius: 20px; width: 80%; text-align: center; }
+        #voip-screen { position: fixed; inset: 0; background: var(--blue); z-index: 9000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
+        .trans-box { margin-top: 40px; background: rgba(0,0,0,0.3); padding: 20px; border-radius: 20px; width: 85%; min-height: 60px; font-size: 18px; }
 
-        /* MARKERS */
-        .snap-pin {
-            width: 55px !important; height: 55px !important;
-            background: var(--snap); border: 5px solid #fff; border-radius: 50% !important;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 900; box-shadow: 0 8px 20px rgba(0,0,0,0.4); font-size: 22px; color: #000;
-        }
-        .pin-tag { background: #fff; color: #000; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 900; margin-top: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .avatar-pin { width: 55px !important; height: 55px !important; background: var(--yellow); border: 4px solid white; border-radius: 50% !important; display: flex; align-items: center; justify-content: center; font-weight: 900; box-shadow: 0 6px 15px rgba(0,0,0,0.3); font-size: 22px; color: black; }
+        .avatar-label { background: white; color: black; padding: 3px 12px; border-radius: 12px; font-size: 12px; font-weight: 900; margin-top: 5px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); white-space: nowrap; }
 
         .hidden { display: none !important; }
     </style>
@@ -96,272 +56,225 @@
 <div id="auth-gate">
     <div class="auth-card">
         <h1>👻</h1>
-        <input id="in-phone" type="tel" placeholder="Phone Number" inputmode="tel">
-        <input id="in-nick" type="text" placeholder="Nickname">
-        <input id="in-pass" type="password" placeholder="Password">
-        <button class="primary-btn" onclick="initAuth()">LOGIN / SIGNUP</button>
+        <input id="au-ph" type="tel" placeholder="Phone Number" inputmode="tel">
+        <input id="au-ni" type="text" placeholder="Nickname">
+        <input id="au-ps" type="password" placeholder="Password">
+        <button class="btn-black" onclick="handleAuth()">ENTER MAP</button>
     </div>
 </div>
 
 <div class="hud-top hidden" id="ui-hud">
-    <div class="search-tray">
-        <input id="find-phone" placeholder="Follow Phone #">
-        <button onclick="addContact()" style="background:none; border:none; color:var(--blue); font-weight:900; cursor:pointer">SYNC</button>
+    <div class="search-bar">
+        <input id="f-inp" placeholder="Phone #">
+        <button onclick="addF()" style="background:none; border:none; color:var(--blue); font-weight:900; cursor:pointer">SYNC</button>
     </div>
 </div>
 
 <div id="chat-sidebar">
-    <div class="chat-header">
-        <h2 id="active-nick">Name</h2>
-        <button onclick="closeChat()" style="background:none; border:none; color:#fff; font-size:32px">✕</button>
+    <div class="chat-head">
+        <h2 id="s-nick">Friend</h2>
+        <button onclick="closeChat()" style="background:none; border:none; color:#000; font-size:32px">✕</button>
     </div>
-    <div class="chat-actions">
-        <button onclick="startCall()" class="action-btn" style="background:var(--blue)">CALL</button>
-        <button onclick="sendAlert()" class="action-btn" style="background:var(--red)">ALERT</button>
+    <div class="chat-tools">
+        <button onclick="startCall()" class="tool-btn" style="background:var(--blue)">CALL</button>
+        <button onclick="sendAlert()" class="tool-btn" style="background:var(--red)">ALERT</button>
     </div>
     <div id="msg-feed"></div>
-    <div id="reply-indicator" class="hidden" style="background:#222; padding:12px; font-size:12px">Replying... <button onclick="cancelReply()" style="color:red">Cancel</button></div>
-    <div style="padding:15px; display:flex; gap:10px; padding-bottom: 45px">
-        <input id="msg-input" onkeydown="if(event.key==='Enter') sendMsg()" placeholder="Send a chat..." style="flex:1; background:#252525; color:#fff; border-radius:18px">
-        <button onclick="sendMsg()" style="background:var(--snap); border:none; padding:0 25px; border-radius:18px; font-weight:900">SEND</button>
+    <div id="reply-indicator" class="hidden" style="background:#f0f0f0; padding:12px; font-size:12px; border-top:1px solid #ddd">Replying... <button onclick="cancelReply()" style="color:red">Cancel</button></div>
+    <div style="padding:15px; display:flex; gap:10px; padding-bottom: 40px">
+        <input id="m-inp" onkeydown="if(event.key==='Enter') sendMsg()" placeholder="Send a chat..." style="flex:1; background:#f5f5f5; border-radius:15px; padding:15px">
+        <button onclick="sendMsg()" style="background:var(--yellow); border:none; padding:0 25px; border-radius:15px; font-weight:900; color:#000">SEND</button>
     </div>
 </div>
 
 <div id="voip-screen">
-    <h2 id="voip-status" style="color:#fff">INCOMING CALL</h2>
-    <h1 id="voip-target" class="voip-nick">User</h1>
+    <h2>VOICE SESSION</h2>
+    <h1 id="v-nick" style="font-size: 50px; margin: 30px 0;">Friend</h1>
     <div style="display:flex; gap:25px">
-        <button onclick="handleCall(false)" style="background:var(--red); color:#fff; padding:20px 45px; border-radius:50px; border:none; font-weight:900">HANGUP</button>
-        <button id="acc-btn" onclick="handleCall(true)" style="background:#fff; color:var(--blue); padding:20px 45px; border-radius:50px; border:none; font-weight:900">ACCEPT</button>
+        <button onclick="location.reload()" style="background:var(--red); color:white; padding:18px 45px; border-radius:50px; border:none; font-weight:900">HANGUP</button>
+        <button id="v-acc" onclick="acceptCall()" style="background:white; color:var(--blue); padding:18px 45px; border-radius:50px; border:none; font-weight:900">ACCEPT</button>
     </div>
-    <div id="stt-box" class="transcription">...</div>
+    <div id="v-trans" class="trans-box">...</div>
 </div>
 
-<div id="notif-hub"></div>
+<div id="toast-hub"></div>
 <div id="map"></div>
-<audio id="audio-bridge" autoplay playsinline></audio>
+<audio id="v-bridge" autoplay playsinline></audio>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // --- PERSISTENCE & STATE ---
-    let socket, map, myPh, myNi, pins = {}, activeFriend, history = [], replyId = null;
+    let ws, map, myPh, myNi, markers = {}, curF, history = [], replyId = null;
     const ring = new Audio('https://assets.mixkit.co/active_storage/sfx/1350/1350-preview.mp3'); ring.loop = true;
-    const beep = new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3');
 
     window.onload = () => {
-        const cache = JSON.parse(localStorage.getItem('tracker_pro_v8'));
+        const cache = JSON.parse(localStorage.getItem('prime_v9_auth'));
         if (cache) {
-            document.getElementById('in-phone').value = cache.p;
-            document.getElementById('in-nick').value = cache.n;
-            document.getElementById('in-pass').value = cache.s;
-            initAuth();
+            document.getElementById('au-ph').value = cache.p;
+            document.getElementById('au-ni').value = cache.n;
+            document.getElementById('au-ps').value = cache.s;
+            handleAuth();
         }
     };
 
-    function initAuth() {
-        const p = document.getElementById('in-phone').value, n = document.getElementById('in-nick').value, s = document.getElementById('in-pass').value;
+    function handleAuth() {
+        const p = document.getElementById('au-ph').value, n = document.getElementById('au-ni').value, s = document.getElementById('au-ps').value;
         if (!p || !n || !s) return;
         myPh = p; myNi = n;
-        localStorage.setItem('tracker_pro_v8', JSON.stringify({p, n, s}));
-        
+        localStorage.setItem('prime_v9_auth', JSON.stringify({p, n, s}));
         const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-        socket = new WebSocket(`${proto}://${location.host}/ws`);
-        socket.binaryType = "arraybuffer";
-
-        socket.onopen = () => {
-            socket.send(JSON.stringify({type:'auth', phone:p, nick:n, text:s}));
-            const flist = JSON.parse(localStorage.getItem('tracker_pro_friends') || "[]");
-            flist.forEach(f => socket.send(JSON.stringify({type:'add_friend', target:f})));
+        ws = new WebSocket(`${proto}://${location.host}/ws`);
+        ws.binaryType = "arraybuffer";
+        ws.onopen = () => {
+            ws.send(JSON.stringify({type:'auth', phone:p, nick:n, text:s}));
+            JSON.parse(localStorage.getItem('prime_v9_friends') || "[]").forEach(f => ws.send(JSON.stringify({type:'add_friend', target:f})));
         };
-
-        socket.onmessage = (e) => {
-            if (e.data instanceof ArrayBuffer) { playBinaryAudio(e.data); return; }
+        ws.onmessage = (e) => {
+            if (e.data instanceof ArrayBuffer) { handleBinary(e.data); return; }
             const d = JSON.parse(e.data);
-            handleInbound(d);
+            handleSignal(d);
         };
     }
 
-    // --- MAP ENGINE ---
-    function setupMap() {
+    function initMap() {
         if (map) return;
         map = L.map('map', { zoomControl: false, tap: false, attributionControl: false }).setView([0,0], 2);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/voyager_all/{z}/{x}/{y}{r}.png').addTo(map);
-        setInterval(() => map.invalidateSize(), 1500);
+        setInterval(() => map.invalidateSize(), 1000);
     }
 
-    function handleInbound(d) {
+    function handleSignal(d) {
         switch(d.type) {
             case 'auth_ok':
                 document.getElementById('auth-gate').style.transform = 'translateY(-100%)';
                 document.getElementById('ui-hud').classList.remove('hidden');
-                setupMap();
-                trackUser();
-                break;
-            case 'loc':
-                renderMarker(d);
-                break;
+                initMap(); track(); break;
+            case 'loc': renderPin(d); break;
             case 'chat':
                 history.push(d);
                 const room = d.from === myPh ? d.target : d.from;
-                if (activeFriend === room) drawChat();
+                if (curF === room) renderChat();
                 if (d.from !== myPh && !document.getElementById('chat-sidebar').classList.contains('open')) {
                     toast(d.fromNick, d.text, d.from);
                 }
                 break;
-            case 'react':
-                const m = history.find(x => x.msgId === d.msgId);
-                if (m) { m.reaction = "👍"; drawChat(); }
-                break;
-            case 'ring_alert':
-                beep.play();
-                toast("ALERT", `${d.from} is ringing you!`, "");
-                break;
+            case 'ring_alert': new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3').play(); break;
             case 'call_invite':
-                triggerCallUI(d.from, d.fromNick);
-                break;
-            case 'call_response':
-                if (d.accept) launchVOIP();
-                else { alert("Call declined"); endVOIP(); }
-                break;
-            case 'transcription':
-                document.getElementById('stt-box').innerText = d.text;
-                break;
-            case 'note':
-                toast("SYSTEM", d.msg, "");
-                break;
+                window.caller = d.from;
+                document.getElementById('voip-screen').style.display = 'flex';
+                document.getElementById('v-nick').innerText = d.fromNick;
+                ring.play(); break;
+            case 'call_resp':
+                if (d.accept) launchVOIP(); else endVOIP(); break;
+            case 'transcription': document.getElementById('v-trans').innerText = d.text; break;
         }
     }
 
-    function renderMarker(d) {
+    function renderPin(d) {
         if (d.phone === myPh) return;
-        const pos = [d.lat, d.lng];
-        if (!pins[d.phone]) {
+        const ll = [d.lat, d.lng];
+        if (!markers[d.phone]) {
             const icon = L.divIcon({
                 className: '', iconSize: [55, 75],
-                html: `<div class="snap-pin">${d.nick[0]}</div><div class="pin-tag">${d.nick}</div>`
+                html: `<div class="avatar-pin">${d.nick[0]}</div><div class="avatar-label">${d.nick}</div>`
             });
-            pins[d.phone] = L.marker(pos, {icon}).addTo(map).on('click', () => openChat(d.phone, d.nick));
-        } else {
-            pins[d.phone].setLatLng(pos);
-        }
+            markers[d.phone] = L.marker(ll, {icon}).addTo(map).on('click', () => openChat(d.phone, d.nick));
+        } else markers[d.phone].setLatLng(ll);
     }
 
     function openChat(phone, nick) {
-        activeFriend = phone;
-        document.getElementById('active-nick').innerText = nick;
-        document.getElementById('chat-sidebar').classList.add('open');
-        drawChat();
+        curF = phone; document.getElementById('s-nick').innerText = nick;
+        document.getElementById('chat-sidebar').classList.add('open'); renderChat();
     }
+    function closeChat() { document.getElementById('chat-sidebar').classList.remove('open'); curF = null; }
 
-    function closeChat() { document.getElementById('chat-sidebar').classList.remove('open'); activeFriend = null; }
-
-    function drawChat() {
+    function renderChat() {
         const box = document.getElementById('msg-feed');
         box.innerHTML = "";
-        history.filter(m => (m.from === myPh && m.target === activeFriend) || (m.from === activeFriend && m.target === myPh)).forEach(m => {
+        history.filter(m => (m.from === myPh && m.target === curF) || (m.from === curF && m.target === myPh)).forEach(m => {
             const div = document.createElement('div');
             div.className = `bubble ${m.from === myPh ? 'me' : 'them'}`;
-            let html = "";
+            let h = "";
             if (m.replyTo) {
                 const r = history.find(x => x.msgId === m.replyTo);
-                if (r) html += `<span class="quote">${r.text.substring(0,25)}...</span>`;
+                if (r) h += `<span class="reply">${r.text.substring(0,25)}...</span>`;
             }
-            html += m.text;
-            if (m.reaction) html += `<span class="reaction">👍</span>`;
-            div.innerHTML = html;
+            div.innerHTML = h + m.text;
             div.onclick = () => { replyId = m.msgId; document.getElementById('reply-indicator').classList.remove('hidden'); };
-            div.oncontextmenu = (e) => { e.preventDefault(); socket.send(JSON.stringify({type:'react', target: activeFriend, msgId: m.msgId})); };
             box.appendChild(div);
         });
         box.scrollTop = box.scrollHeight;
     }
 
     function sendMsg() {
-        const i = document.getElementById('msg-input');
+        const i = document.getElementById('m-inp');
         if (!i.value) return;
-        socket.send(JSON.stringify({
-            type: 'chat', target: activeFriend, text: i.value, msgId: Date.now().toString(), replyTo: replyId
-        }));
+        ws.send(JSON.stringify({type:'chat', target:curF, text:i.value, msgId: Date.now().toString(), replyTo: replyId}));
         i.value = ""; cancelReply();
     }
 
-    // --- VOIP PIPELINE (1-SEC CHUNKS) ---
+    // VOIP ENGINE (1-SEC CHUNKS)
     function startCall() {
-        socket.send(JSON.stringify({type:'call_invite', target: activeFriend}));
-        document.getElementById('voip-status').innerText = "CALLING...";
-        document.getElementById('voip-target').innerText = document.getElementById('active-nick').innerText;
+        ws.send(JSON.stringify({type:'call_invite', target: curF}));
         document.getElementById('voip-screen').style.display = 'flex';
-        document.getElementById('acc-btn').classList.add('hidden');
+        document.getElementById('v-acc').classList.add('hidden');
     }
 
-    function triggerCallUI(ph, ni) {
-        window.incoming = ph;
-        document.getElementById('voip-status').innerText = "INCOMING...";
-        document.getElementById('voip-target').innerText = ni;
-        document.getElementById('voip-screen').style.display = 'flex';
-        document.getElementById('acc-btn').classList.remove('hidden');
-        ring.play();
-    }
-
-    function handleCall(acc) {
+    function acceptCall() {
         ring.pause();
-        socket.send(JSON.stringify({type:'call_response', target: window.incoming || activeFriend, accept: acc}));
-        if (acc) launchVOIP(); else endVOIP();
+        ws.send(JSON.stringify({type:'call_resp', target: window.caller, accept: true}));
+        launchVOIP();
     }
 
     async function launchVOIP() {
-        document.getElementById('voip-status').innerText = "LIVE (3:00)";
-        document.getElementById('acc-btn').classList.add('hidden');
+        document.getElementById('v-acc').classList.add('hidden');
         const stream = await navigator.mediaDevices.getUserMedia({audio: true});
         const rec = new MediaRecorder(stream);
-        rec.ondataavailable = e => { if (e.data.size > 0 && socket.readyState === 1) socket.send(e.data); };
-        rec.start(1000); // 1-Second RAM Buffer
-        
+        rec.ondataavailable = e => { if (e.data.size > 0) ws.send(e.data); };
+        rec.start(1000); // 1-Second Binary Chunk
+
         const STT = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (STT) {
             const s = new STT(); s.continuous = true; s.interimResults = true;
             s.onresult = ev => {
                 const t = ev.results[ev.results.length-1][0].transcript;
-                socket.send(JSON.stringify({type:'transcription', target: window.incoming || activeFriend, text: t}));
+                ws.send(JSON.stringify({type:'transcription', target: window.caller || curF, text: t}));
             };
             s.start();
         }
     }
 
-    function playBinaryAudio(buf) {
-        const blob = new Blob([buf], { type: 'audio/webm' });
-        new Audio(URL.createObjectURL(blob)).play();
+    function handleBinary(buf) {
+        const b = new Blob([buf], { type: 'audio/webm' });
+        new Audio(URL.createObjectURL(b)).play();
     }
 
-    // --- HELPERS ---
-    function trackUser() {
+    function track() {
         navigator.geolocation.watchPosition(p => {
-            if (socket.readyState === 1) socket.send(JSON.stringify({type:'location', lat:p.coords.latitude, lng:p.coords.longitude}));
+            if (ws.readyState === 1) ws.send(JSON.stringify({type:'location', lat:p.coords.latitude, lng:p.coords.longitude}));
         }, null, {enableHighAccuracy: true});
     }
 
     function toast(t, m, p) {
-        const hub = document.getElementById('notif-hub');
+        const h = document.getElementById('toast-hub');
         const d = document.createElement('div');
         d.className = 'toast';
         d.innerHTML = `<strong>${t}</strong><br>${m}`;
         d.onclick = () => { if(p) openChat(p, t); d.remove(); };
-        hub.appendChild(d);
-        setTimeout(() => d.remove(), 6000);
+        h.appendChild(d); setTimeout(() => d.remove(), 6000);
     }
 
-    function addContact() {
-        const v = document.getElementById('find-phone').value;
+    function addF() {
+        const v = document.getElementById('f-inp').value;
         if (!v) return;
-        const l = JSON.parse(localStorage.getItem('tracker_pro_friends') || "[]");
-        if (!l.includes(v)) { l.push(v); localStorage.setItem('tracker_pro_friends', JSON.stringify(l)); }
-        socket.send(JSON.stringify({type:'add_friend', target: v}));
-        document.getElementById('find-phone').value = "";
+        const l = JSON.parse(localStorage.getItem('prime_v9_friends') || "[]");
+        if (!l.includes(v)) { l.push(v); localStorage.setItem('prime_v9_friends', JSON.stringify(l)); }
+        ws.send(JSON.stringify({type:'add_friend', target: v}));
+        document.getElementById('f-inp').value = "";
     }
 
     function cancelReply() { replyId = null; document.getElementById('reply-indicator').classList.add('hidden'); }
+    function sendAlert() { ws.send(JSON.stringify({type:'alert', target: curF})); }
     function endVOIP() { document.getElementById('voip-screen').style.display = 'none'; }
-    function sendAlert() { socket.send(JSON.stringify({type:'alert', target: activeFriend})); }
 </script>
 </body>
 </html>
