@@ -25,7 +25,7 @@ var (
 	users         = make(map[string]*User)
 	userMutex     sync.RWMutex
 	upgrader      = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-	activeCallers = make(map[string]bool)
+	activeCallers = make(map[string]string) // maps Caller -> Receiver
 	callMutex     sync.Mutex
 )
 
@@ -36,7 +36,7 @@ func main() {
 	http.HandleFunc("/ws", handleWebSocket)
 	http.Handle("/", http.FileServer(http.Dir("./")))
 
-	log.Printf("Final Product running on port %s", port)
+	log.Printf("Server Live on Port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
@@ -63,7 +63,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			pass := data["pass"].(string)
 			if u, ok := users[phone]; ok {
 				if u.Password == pass { currentUser = u } else {
-					conn.WriteJSON(map[string]string{"type": "error", "msg": "Invalid Password"})
+					conn.WriteJSON(map[string]string{"type": "error", "msg": "Auth Failed"})
 					userMutex.Unlock(); return
 				}
 			} else {
@@ -77,47 +77,53 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			if currentUser != nil {
 				currentUser.Lat, _ = data["lat"].(float64)
 				currentUser.Lng, _ = data["lng"].(float64)
-				broadcastUpdate(currentUser)
+				for p := range currentUser.Friends {
+					if f, ok := users[p]; ok { sendLoc(f, currentUser) }
+				}
 			}
 
 		case "add_friend":
-			targetPhone := data["target"].(string)
-			if f, ok := users[targetPhone]; ok && currentUser != nil {
-				currentUser.Friends[targetPhone] = true
+			target := data["target"].(string)
+			if f, ok := users[target]; ok && currentUser != nil {
+				currentUser.Friends[target] = true
 				f.Friends[currentUser.Phone] = true
-				// Immediate Sync
-				sendLoc(f, currentUser)
-				sendLoc(currentUser, f)
-				notify(f, "System", currentUser.Phone + " added you!")
+				sendLoc(f, currentUser); sendLoc(currentUser, f)
+				notify(f, "System", currentUser.Phone+" added you!")
 			}
 
 		case "chat":
-			target := data["target"].(string)
-			if f, ok := users[target]; ok && currentUser != nil {
-				f.Conn.WriteJSON(map[string]string{
+			targetPhone := data["target"].(string)
+			if f, ok := users[targetPhone]; ok && currentUser != nil {
+				msgObj := map[string]string{
 					"type": "chat_msg", "from": currentUser.Phone, "text": data["text"].(string),
-				})
+				}
+				f.Conn.WriteJSON(msgObj)
+				currentUser.Conn.WriteJSON(msgObj) // Echo back to sender
 			}
 
 		case "call_init":
 			target := data["target"].(string)
 			callMutex.Lock()
-			if len(activeCallers) >= 2 {
-				notify(currentUser, "System", "Lines busy. Max 1 call allowed.")
+			if len(activeCallers) > 0 {
+				notify(currentUser, "Error", "Global Line Busy (1 Call Max)")
 			} else if f, ok := users[target]; ok {
-				activeCallers[currentUser.Phone] = true
-				activeCallers[target] = true
+				activeCallers[currentUser.Phone] = target
 				f.Conn.WriteJSON(map[string]string{"type": "incoming_call", "from": currentUser.Phone})
-				// 3 Minute Auto-Kill
+			}
+			callMutex.Unlock()
+
+		case "call_accept":
+			callerPhone := data["caller"].(string)
+			if caller, ok := users[callerPhone]; ok {
+				caller.Conn.WriteJSON(map[string]string{"type": "call_started"})
+				// Auto-kill after 3 mins
 				time.AfterFunc(3*time.Minute, func() {
 					callMutex.Lock()
-					delete(activeCallers, currentUser.Phone)
-					delete(activeCallers, target)
+					activeCallers = make(map[string]string)
 					callMutex.Unlock()
 					runtime.GC()
 				})
 			}
-			callMutex.Unlock()
 		}
 		userMutex.Unlock()
 	}
@@ -133,10 +139,4 @@ func sendLoc(to, about *User) {
 
 func notify(u *User, from, msg string) {
 	if u.Conn != nil { u.Conn.WriteJSON(map[string]string{"type": "note", "msg": msg}) }
-}
-
-func broadcastUpdate(u *User) {
-	for phone := range u.Friends {
-		if f, ok := users[phone]; ok { sendLoc(f, u) }
-	}
 }
