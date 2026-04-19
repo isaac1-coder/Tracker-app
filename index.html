@@ -2,225 +2,605 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tracker Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Tracker Pro Ultra</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --snap: #FFFC00; --blue: #0784FF; --red: #FF3B30; --dark: #121212; }
-        * { box-sizing: border-box; font-family: -apple-system, sans-serif; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        body, html { height: 100dvh; width: 100vw; overflow: hidden; background: var(--dark); color: white; }
-        
-        #map { position: absolute; inset: 0; z-index: 0; filter: grayscale(1) invert(1) contrast(0.8); }
+        :root {
+            --snap-yellow: #FFFC00;
+            --snap-blue: #00B6FF;
+            --snap-red: #FF3B30;
+            --bg-dark: #121212;
+            --card-dark: #1E1E1E;
+            --text-main: #FFFFFF;
+        }
 
-        /* Auth */
-        #auth { position: fixed; inset: 0; z-index: 10000; background: var(--snap); display: flex; align-items: center; justify-content: center; color: black; }
-        input { width: 100%; padding: 18px; margin: 8px 0; border-radius: 15px; border: none; font-size: 16px; outline: none; background: white; }
-        .btn-black { width: 100%; padding: 18px; background: black; color: white; border-radius: 50px; border: none; font-weight: bold; margin-top: 10px; }
-
-        /* UI Overlays */
-        .hud { position: absolute; top: 15px; width: 100%; z-index: 100; display: flex; justify-content: center; pointer-events: none; }
-        .search { background: rgba(30,30,30,0.9); backdrop-filter: blur(20px); padding: 5px 15px; border-radius: 50px; display: flex; pointer-events: auto; width: 90%; max-width: 400px; border: 1px solid rgba(255,255,255,0.1); }
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         
-        #sidebar { position: fixed; left: 0; bottom: -100%; width: 100%; height: 94%; background: #1a1a1a; z-index: 2000; transition: 0.4s cubic-bezier(0.1, 0.7, 0.1, 1); border-radius: 30px 30px 0 0; display: flex; flex-direction: column; }
-        #sidebar.open { bottom: 0; }
-        
-        .side-head { padding: 20px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
-        .friend-list { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 500; display: flex; gap: 10px; pointer-events: auto; }
-        .f-pill { background: white; color: black; padding: 10px 20px; border-radius: 50px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-size: 14px; }
+        body, html {
+            height: 100dvh;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000;
+            position: fixed;
+        }
 
-        #msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
-        .m { padding: 12px 16px; border-radius: 18px; font-size: 15px; max-width: 80%; line-height: 1.4; position: relative; background: #333; }
-        .m.me { align-self: flex-end; background: var(--blue); }
-        .m .reply { font-size: 11px; opacity: 0.6; display: block; margin-bottom: 4px; border-left: 2px solid #fff; padding-left: 5px; }
-        .m .thumbs { position: absolute; bottom: -10px; right: 10px; background: #444; border-radius: 10px; padding: 2px 6px; font-size: 12px; }
+        /* MAP STYLING */
+        #map {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background: #222;
+        }
 
-        /* Calling */
-        #call-ui { position: fixed; inset: 0; background: var(--blue); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; }
-        .ring { animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        /* AUTH SCREEN */
+        #auth-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            background: var(--snap-yellow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .auth-card {
+            width: 85%;
+            max-width: 380px;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .auth-card h1 { font-size: 72px; margin-bottom: 20px; text-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+
+        input {
+            width: 100%;
+            padding: 18px;
+            margin: 10px 0;
+            border-radius: 16px;
+            border: none;
+            font-size: 18px;
+            outline: none;
+            background: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        .btn-black {
+            width: 100%;
+            padding: 20px;
+            background: #000;
+            color: #fff;
+            border-radius: 50px;
+            border: none;
+            font-weight: 800;
+            font-size: 18px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: transform 0.2s;
+        }
+        .btn-black:active { transform: scale(0.96); }
+
+        /* HUD & NAVIGATION */
+        .top-hud {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .search-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 5px 20px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+            pointer-events: auto;
+        }
+
+        .search-container input {
+            flex: 1;
+            background: transparent;
+            box-shadow: none;
+            padding: 12px;
+            margin: 0;
+            font-size: 15px;
+        }
+
+        /* SIDEBAR / CHAT */
+        #chat-sidebar {
+            position: fixed;
+            left: 0;
+            bottom: -100%;
+            width: 100%;
+            height: 94dvh;
+            background: #1a1a1a;
+            z-index: 5000;
+            border-radius: 30px 30px 0 0;
+            display: flex;
+            flex-direction: column;
+            transition: 0.4s cubic-bezier(0.1, 0.7, 0.1, 1);
+            color: white;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+        }
+
+        #chat-sidebar.open { bottom: 0; }
+
+        .chat-header {
+            padding: 25px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-tools {
+            display: flex;
+            gap: 12px;
+            padding: 15px 25px;
+            background: #222;
+        }
+
+        .tool-btn {
+            flex: 1;
+            padding: 15px;
+            border-radius: 15px;
+            border: none;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 13px;
+        }
+
+        #msg-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .bubble {
+            padding: 12px 18px;
+            border-radius: 20px;
+            font-size: 16px;
+            max-width: 85%;
+            line-height: 1.4;
+            position: relative;
+            background: #333;
+        }
+
+        .bubble.me { align-self: flex-end; background: var(--snap-blue); }
+        .bubble.them { align-self: flex-start; background: #444; }
         
-        .transcript { position: fixed; bottom: 120px; width: 80%; left: 10%; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 12px; z-index: 6000; font-size: 14px; text-align: center; border: 1px solid #444; display: none; }
-        .marker-dot { width: 15px; height: 15px; background: var(--blue); border: 3px solid white; border-radius: 50%; box-shadow: 0 0 15px var(--blue); pointer-events: none; }
+        .bubble .reply-text {
+            font-size: 11px;
+            background: rgba(0,0,0,0.2);
+            padding: 5px;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .reaction {
+            position: absolute;
+            bottom: -12px;
+            right: 5px;
+            background: #222;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            border: 1px solid #444;
+        }
+
+        /* NOTIFICATIONS */
+        #notification-center {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: flex-end;
+            pointer-events: none;
+        }
+
+        .snap-toast {
+            background: white;
+            color: black;
+            padding: 15px 25px;
+            border-radius: 50px;
+            font-weight: bold;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            pointer-events: auto;
+            animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            border-left: 6px solid var(--snap-blue);
+        }
+
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* CALL OVERLAY */
+        #call-ui {
+            position: fixed;
+            inset: 0;
+            background: var(--snap-blue);
+            z-index: 9000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+        }
+
+        .call-nick { font-size: 56px; font-weight: 900; margin: 30px 0; }
+        .call-btn-row { display: flex; gap: 20px; }
+        
+        .circle-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        /* MAP MARKERS */
+        .marker-icon {
+            width: 50px !important;
+            height: 50px !important;
+            background: var(--snap-yellow);
+            border: 4px solid white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+            font-size: 20px;
+            color: #000;
+        }
+
+        .marker-label {
+            background: white;
+            color: black;
+            padding: 3px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 800;
+            margin-top: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            white-space: nowrap;
+        }
+
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-<div id="auth">
-    <div class="auth-box" style="width:320px">
+<div id="auth-overlay">
+    <div class="auth-card">
         <h1>👻</h1>
-        <input id="ph" type="tel" placeholder="Phone Number">
-        <input id="ni" type="text" placeholder="Nickname">
-        <input id="ps" type="password" placeholder="Password">
-        <button onclick="doAuth()" class="btn-black">LOG IN</button>
+        <input id="auth-phone" type="tel" placeholder="Phone Number" inputmode="tel">
+        <input id="auth-nick" type="text" placeholder="Nickname">
+        <input id="auth-pass" type="password" placeholder="Password">
+        <button class="btn-black" onclick="handleAuth()">INITIALIZE</button>
     </div>
 </div>
 
-<div class="hud"><div class="search"><input id="fIn" placeholder="Phone #" style="background:transparent; color:white; flex:1; border:none"><button onclick="addFriend()" style="color:var(--snap); background:none; border:none; font-weight:bold">ADD</button></div></div>
-
-<div class="friend-list" id="fList"></div>
-
-<div id="sidebar">
-    <div class="side-head"><h2 id="sNick">Name</h2><button onclick="closeSide()" style="background:none; border:none; color:white; font-size:24px">✕</button></div>
-    <div style="padding:10px; display:flex; gap:10px; border-bottom:1px solid #333">
-        <button onclick="initCall()" style="flex:1; background:var(--blue); border:none; color:white; padding:12px; border-radius:12px; font-weight:bold">VOICE CALL</button>
+<div class="top-hud hidden" id="main-hud">
+    <div class="search-container">
+        <input id="friend-input" placeholder="Add friend by phone #">
+        <button onclick="addFriend()" style="background:none; border:none; color:var(--snap-blue); font-weight:800; font-size:14px; cursor:pointer">ADD</button>
     </div>
-    <div id="msgs"></div>
-    <div id="reply-preview" style="display:none; padding:10px; background:#222; font-size:12px">Replying to... <button onclick="clearReply()">✕</button></div>
-    <div style="padding:15px; display:flex; gap:10px; padding-bottom: 30px">
-        <input id="cIn" placeholder="Type a message..." style="flex:1; background:#333; color:white" onkeydown="if(event.key==='Enter') sendChat()">
-        <button onclick="sendChat()" style="background:var(--snap); color:black; border:none; padding:0 20px; border-radius:15px; font-weight:bold">SEND</button>
+</div>
+
+<div id="chat-sidebar">
+    <div class="chat-header">
+        <h2 id="current-chat-name">Nickname</h2>
+        <button onclick="closeSidebar()" style="background:none; border:none; color:white; font-size:32px; padding:10px">✕</button>
+    </div>
+    <div class="chat-tools">
+        <button onclick="triggerCall()" class="tool-btn" style="background:var(--snap-blue)">Call</button>
+        <button onclick="sendQuickAlert()" class="tool-btn" style="background:var(--snap-red)">Alert</button>
+    </div>
+    <div id="msg-container"></div>
+    <div id="reply-box" class="hidden" style="background:#222; padding:10px; font-size:12px; border-top:1px solid #333">
+        Replying to... <button onclick="cancelReply()" style="color:red">✕</button>
+    </div>
+    <div style="padding:15px; display:flex; gap:10px; padding-bottom: 40px">
+        <input id="chat-input" onkeydown="if(event.key==='Enter') sendChatMessage()" placeholder="Type a message..." style="flex:1; background:#2a2a2a; color:white; border-radius:15px">
+        <button onclick="sendChatMessage()" style="background:var(--snap-yellow); border:none; padding:0 20px; border-radius:15px; font-weight:800; color:#000">SEND</button>
     </div>
 </div>
 
 <div id="call-ui">
-    <h2 id="call-status">INCOMING CALL</h2>
-    <h1 id="call-nick" style="font-size:48px; margin:30px 0" class="ring">Name</h1>
-    <div style="display:flex; gap:20px">
-        <button onclick="callResp(false)" style="background:var(--red); padding:15px 40px; border-radius:50px; border:none; color:white; font-weight:bold">DECLINE</button>
-        <button onclick="callResp(true)" style="background:white; padding:15px 40px; border-radius:50px; border:none; color:black; font-weight:bold">ACCEPT</button>
+    <h2 id="call-label">INCOMING CALL</h2>
+    <h1 id="call-target-nick" class="call-nick">Friend</h1>
+    <div class="call-btn-row">
+        <button class="circle-btn" style="background:var(--snap-red); color:white" onclick="respondCall(false)">DECLINE</button>
+        <button id="accept-btn" class="circle-btn" style="background:white; color:var(--snap-blue)" onclick="respondCall(true)">ACCEPT</button>
     </div>
+    <div id="live-transcription" style="margin-top:40px; background:rgba(0,0,0,0.5); padding:20px; border-radius:20px; width:80%; font-size:18px">...</div>
 </div>
 
-<div class="transcript" id="transBox"></div>
+<div id="notification-center"></div>
 <div id="map"></div>
+<audio id="remote-audio-player" autoplay playsinline></audio>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    let ws, map, myP, markers = {}, curF, chatH = [], replyID = null, audioRec;
-    const ringSnd = new Audio('https://assets.mixkit.co/active_storage/sfx/1350/1350-preview.mp3'); ringSnd.loop = true;
+    // --- APP STATE ---
+    let ws, map, myPhone, myNick, markers = {}, curFriendPhone, chatHistory = [], activeReplyId = null;
+    const ringtone = new Audio('https://assets.mixkit.co/active_storage/sfx/1350/1350-preview.mp3'); ringtone.loop = true;
+    const alertSound = new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3');
 
-    function doAuth() {
-        const p=document.getElementById('ph').value, n=document.getElementById('ni').value, s=document.getElementById('ps').value;
-        myP = p; const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-        ws = new WebSocket(`${proto}://${location.host}/ws`);
+    // --- INITIALIZATION ---
+    window.onload = () => {
+        const cache = JSON.parse(localStorage.getItem('tracker_v5_cache'));
+        if (cache) {
+            document.getElementById('auth-phone').value = cache.p;
+            document.getElementById('auth-nick').value = cache.n;
+            document.getElementById('auth-pass').value = cache.s;
+            performLogin(cache.p, cache.n, cache.s);
+        }
+    };
+
+    function handleAuth() {
+        const p = document.getElementById('auth-phone').value;
+        const n = document.getElementById('auth-nick').value;
+        const s = document.getElementById('auth-pass').value;
+        if (!p || !n || !s) return alert("All fields required");
+        localStorage.setItem('tracker_v5_cache', JSON.stringify({p, n, s}));
+        performLogin(p, n, s);
+    }
+
+    function performLogin(p, n, s) {
+        myPhone = p; myNick = n;
+        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        ws = new WebSocket(`${protocol}://${location.host}/ws`);
         ws.binaryType = "arraybuffer";
+
         ws.onopen = () => {
-            ws.send(JSON.stringify({type:'auth', phone:p, nick:n, pass:s}));
-            JSON.parse(localStorage.getItem("f_list") || "[]").forEach(f => ws.send(JSON.stringify({type:'add_friend', target:f})));
+            ws.send(JSON.stringify({type:'auth', phone:p, nick:n, text:s}));
+            // Restore persistent friends
+            const list = JSON.parse(localStorage.getItem('tracker_v5_friends') || "[]");
+            list.forEach(f => ws.send(JSON.stringify({type:'add_friend', target:f})));
         };
+
         ws.onmessage = (e) => {
-            if (e.data instanceof ArrayBuffer) { handleAudioChunk(e.data); return; }
+            if (e.data instanceof ArrayBuffer) { handleBinaryAudio(e.data); return; }
             const d = JSON.parse(e.data);
-            if(d.type==='auth_ok') { document.getElementById('auth').style.display='none'; initMap(); track(); }
-            if(d.type==='loc') updateLoc(d);
-            if(d.type==='chat') { chatH.push(d); if(curF === (d.from===myP?d.target:d.from)) renderChat(); }
-            if(d.type==='react') { 
-                const msg = chatH.find(m => m.id === d.msgID);
-                if(msg) { msg.thumbs = (msg.thumbs || 0) + 1; renderChat(); }
-            }
-            if(d.type==='call_invite') { 
-                document.getElementById('call-ui').style.display='flex'; 
-                document.getElementById('call-nick').innerText = d.fromNick; 
-                window.caller = d.from; ringSnd.play(); 
-            }
-            if(d.type==='call_resp') {
-                if(d.accept) startStreaming();
-                else { alert("Call Declined"); ringSnd.pause(); }
-            }
-            if(d.type==='transcription') {
-                const box = document.getElementById('transBox');
-                box.innerText = d.text; box.style.display = 'block';
-                setTimeout(() => box.style.display='none', 3000);
-            }
+            handleJsonMessage(d);
         };
     }
 
+    // --- UI LOGIC ---
     function initMap() {
-        map = L.map('map', {zoomControl: false}).setView([0,0], 2);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        setInterval(() => map.invalidateSize(), 1000);
+        if (map) return;
+        map = L.map('map', { zoomControl: false, tap: false, attributionControl: false }).setView([0,0], 2);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/voyager_all/{z}/{x}/{y}{r}.png').addTo(map);
+        // Map anti-black-hole fix
+        setInterval(() => map.invalidateSize(), 1500);
     }
 
-    function track() {
-        navigator.geolocation.watchPosition(pos => {
-            ws.send(JSON.stringify({type:'location', lat:pos.coords.latitude, lng:pos.coords.longitude}));
-        });
+    function handleJsonMessage(d) {
+        switch(d.type) {
+            case 'auth_ok':
+                document.getElementById('auth-overlay').style.transform = 'translateY(-100%)';
+                document.getElementById('main-hud').classList.remove('hidden');
+                initMap();
+                startTracking();
+                break;
+            case 'loc':
+                updateMapMarker(d);
+                break;
+            case 'chat':
+                chatHistory.push(d);
+                if (curFriendPhone === (d.from === myPhone ? d.target : d.from)) renderChat();
+                if (d.from !== myPhone && !document.getElementById('chat-sidebar').classList.contains('open')) {
+                    showToast(d.fromNick, d.text, d.from);
+                }
+                break;
+            case 'react':
+                const m = chatHistory.find(x => x.msgId === d.msgId);
+                if (m) { m.reaction = "👍"; renderChat(); }
+                break;
+            case 'ring_alert':
+                alertSound.play();
+                showToast("ALERT", `${d.from} is ringing you!`, "");
+                break;
+            case 'call_invite':
+                showCallUI(d.from, d.fromNick);
+                break;
+            case 'call_response':
+                if (d.accept) beginVoiceStreaming();
+                else { alert("Call declined"); endCallUI(); }
+                break;
+            case 'transcription':
+                document.getElementById('live-transcription').innerText = d.text;
+                break;
+            case 'note':
+                showToast("System", d.msg, "");
+                break;
+        }
     }
 
-    function updateLoc(d) {
-        if(d.p === myP) return;
-        if(!markers[d.p]) {
-            const icon = L.divIcon({className:'', html:'<div class="marker-dot"></div>'});
-            markers[d.p] = L.marker([d.lat, d.lng], {icon, interactive: false}).addTo(map);
-            const btn = document.createElement('div'); btn.className='f-pill'; btn.innerText=d.n;
-            btn.onclick = () => openSide(d.p, d.n);
-            document.getElementById('fList').appendChild(btn);
-        } else markers[d.p].setLatLng([d.lat, d.lng]);
+    function updateMapMarker(d) {
+        if (d.phone === myPhone) return;
+        const ll = [d.lat, d.lng];
+        if (!markers[d.phone]) {
+            const icon = L.divIcon({
+                className: '',
+                iconSize: [50, 70],
+                html: `<div class="marker-icon">${d.nick[0]}</div><div class="marker-label">${d.nick}</div>`
+            });
+            markers[d.phone] = L.marker(ll, {icon}).addTo(map).on('click', () => openChat(d.phone, d.nick));
+        } else {
+            markers[d.phone].setLatLng(ll);
+        }
     }
 
-    function openSide(p, n) { curF = p; document.getElementById('sNick').innerText=n; document.getElementById('sidebar').classList.add('open'); renderChat(); }
-    function closeSide() { document.getElementById('sidebar').classList.remove('open'); }
-
-    function sendChat() {
-        const i = document.getElementById('cIn'); if(!i.value) return;
-        const msg = {type:'chat', target:curF, text:i.value, id: Date.now(), replyTo: replyID};
-        ws.send(JSON.stringify(msg)); i.value = ""; clearReply();
+    function openChat(phone, nick) {
+        curFriendPhone = phone;
+        document.getElementById('current-chat-name').innerText = nick;
+        document.getElementById('chat-sidebar').classList.add('open');
+        renderChat();
     }
+
+    function closeSidebar() { document.getElementById('chat-sidebar').classList.remove('open'); curFriendPhone = null; }
 
     function renderChat() {
-        const b = document.getElementById('msgs'); b.innerHTML = "";
-        chatH.filter(m => (m.from===myP && m.target===curF) || (m.from===curF && m.target===myP)).forEach(m => {
-            const div = document.createElement('div'); div.className = `m ${m.from===myP?'me':'them'}`;
-            let html = m.text;
-            if(m.replyTo) { 
-                const r = chatH.find(x => x.id === m.replyTo);
-                if(r) html = `<span class="reply">${r.text.substring(0,20)}...</span>` + html;
+        const box = document.getElementById('msg-container');
+        box.innerHTML = "";
+        chatHistory.filter(m => (m.from === myPhone && m.target === curFriendPhone) || (m.from === curFriendPhone && m.target === myPhone)).forEach(m => {
+            const div = document.createElement('div');
+            div.className = `bubble ${m.from === myPhone ? 'me' : 'them'}`;
+            
+            let html = "";
+            if (m.replyTo) {
+                const r = chatHistory.find(x => x.msgId === m.replyTo);
+                if (r) html += `<span class="reply-text">${r.text.substring(0,30)}...</span>`;
             }
-            div.innerHTML = html + (m.thumbs ? `<span class="thumbs">👍 ${m.thumbs}</span>` : "");
-            div.onclick = () => { replyID = m.id; document.getElementById('reply-preview').style.display='block'; };
-            div.oncontextmenu = (e) => { e.preventDefault(); ws.send(JSON.stringify({type:'react', target:curF, msgID: m.id})); };
-            b.appendChild(div);
+            html += m.text;
+            if (m.reaction) html += `<span class="reaction">${m.reaction}</span>`;
+
+            div.innerHTML = html;
+            div.onclick = () => setReply(m.msgId);
+            div.oncontextmenu = (e) => {
+                e.preventDefault();
+                ws.send(JSON.stringify({type:'react', target: curFriendPhone, msgId: m.msgId}));
+            };
+            box.appendChild(div);
         });
-        b.scrollTop = b.scrollHeight;
+        box.scrollTop = box.scrollHeight;
     }
 
-    // 1-SECOND CHUNKED VOIP
-    async function initCall() {
-        ws.send(JSON.stringify({type:'call_invite', target:curF, fromNick: myNick}));
-        document.getElementById('call-status').innerText = "DIALING...";
+    function sendChatMessage() {
+        const inp = document.getElementById('chat-input');
+        if (!inp.value) return;
+        const p = {
+            type: 'chat',
+            target: curFriendPhone,
+            text: inp.value,
+            msgId: Date.now().toString(),
+            replyTo: activeReplyId
+        };
+        ws.send(JSON.stringify(p));
+        inp.value = "";
+        cancelReply();
+    }
+
+    // --- VOIP & CALLING ---
+    function triggerCall() {
+        ws.send(JSON.stringify({type:'call_invite', target: curFriendPhone}));
+        document.getElementById('call-label').innerText = "DIALING...";
+        document.getElementById('call-target-nick').innerText = document.getElementById('current-chat-name').innerText;
         document.getElementById('call-ui').style.display = 'flex';
+        document.getElementById('accept-btn').classList.add('hidden');
     }
 
-    async function callResp(acc) {
-        ringSnd.pause();
-        document.getElementById('call-ui').style.display = 'none';
-        ws.send(JSON.stringify({type:'call_resp', target: window.caller, accept: acc}));
-        if(acc) { curF = window.caller; startStreaming(); }
+    function showCallUI(phone, nick) {
+        window.incomingCaller = phone;
+        document.getElementById('call-label').innerText = "INCOMING CALL";
+        document.getElementById('call-target-nick').innerText = nick;
+        document.getElementById('call-ui').style.display = 'flex';
+        document.getElementById('accept-btn').classList.remove('hidden');
+        ringtone.play();
     }
 
-    async function startStreaming() {
-        const stream = await navigator.mediaDevices.getUserMedia({audio: true});
-        audioRec = new MediaRecorder(stream);
+    function respondCall(accepted) {
+        ringtone.pause();
+        const p = {type: 'call_response', target: window.incomingCaller || curFriendPhone, accept: accepted};
+        ws.send(JSON.stringify(p));
+        if (accepted) beginVoiceStreaming();
+        else endCallUI();
+    }
+
+    async function beginVoiceStreaming() {
+        document.getElementById('call-label').innerText = "LIVE SESSION (3:00)";
+        document.getElementById('accept-btn').classList.add('hidden');
         
-        // Setup Transcription
+        const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+        const recorder = new MediaRecorder(stream);
+        
+        // --- 1 SECOND CHUNK LOGIC ---
+        recorder.ondataavailable = e => {
+            if (e.data.size > 0 && ws.readyState === 1) {
+                ws.send(e.data); // Sending raw binary to RAM
+            }
+        };
+        recorder.start(1000); // 1-second interval
+
+        // --- TRANSCRIPTION ---
         const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if(Speech) {
-            const rec = new Speech(); rec.continuous = true; rec.interimResults = true;
-            rec.onresult = e => {
-                const t = e.results[e.results.length-1][0].transcript;
-                ws.send(JSON.stringify({type:'transcription', target:curF, text: t}));
+        if (Speech) {
+            const rec = new Speech();
+            rec.continuous = true; rec.interimResults = true;
+            rec.onresult = ev => {
+                const txt = ev.results[ev.results.length-1][0].transcript;
+                ws.send(JSON.stringify({type:'transcription', target: window.incomingCaller || curFriendPhone, text: txt}));
             };
             rec.start();
         }
-
-        audioRec.ondataavailable = e => { if(e.data.size > 0) ws.send(e.data); };
-        audioRec.start(1000); // 1-second chunks sent to backend RAM
     }
 
-    function handleAudioChunk(arrayBuffer) {
-        const blob = new Blob([arrayBuffer], { type: 'audio/webm' });
+    function handleBinaryAudio(buffer) {
+        const blob = new Blob([buffer], { type: 'audio/webm' });
         const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        audio.play();
+        const a = new Audio(url);
+        a.play();
+    }
+
+    // --- HELPERS ---
+    function startTracking() {
+        navigator.geolocation.watchPosition(pos => {
+            if (ws.readyState === 1) {
+                ws.send(JSON.stringify({type:'location', lat:pos.coords.latitude, lng:pos.coords.longitude}));
+            }
+        }, null, {enableHighAccuracy: true});
+    }
+
+    function showToast(title, msg, phone) {
+        const center = document.getElementById('notification-center');
+        const div = document.createElement('div');
+        div.className = 'snap-toast';
+        div.innerHTML = `<strong>${title}</strong><br>${msg}`;
+        div.onclick = () => { if(phone) openChat(phone, title); div.remove(); };
+        center.appendChild(div);
+        setTimeout(() => div.remove(), 5000);
     }
 
     function addFriend() {
-        const v = document.getElementById('fIn').value;
-        const list = JSON.parse(localStorage.getItem("f_list") || "[]");
-        if(!list.includes(v)) { list.push(v); localStorage.setItem("f_list", JSON.stringify(list)); }
-        ws.send(JSON.stringify({type:'add_friend', target:v}));
+        const v = document.getElementById('friend-input').value;
+        if (!v) return;
+        const list = JSON.parse(localStorage.getItem('tracker_v5_friends') || "[]");
+        if (!list.includes(v)) { list.push(v); localStorage.setItem('tracker_v5_friends', JSON.stringify(list)); }
+        ws.send(JSON.stringify({type:'add_friend', target: v}));
+        document.getElementById('friend-input').value = "";
     }
-    function clearReply() { replyID = null; document.getElementById('reply-preview').style.display='none'; }
+
+    function setReply(id) { activeReplyId = id; document.getElementById('reply-box').classList.remove('hidden'); }
+    function cancelReply() { activeReplyId = null; document.getElementById('reply-box').classList.add('hidden'); }
+    function endCallUI() { document.getElementById('call-ui').style.display = 'none'; }
+    function sendQuickAlert() { ws.send(JSON.stringify({type:'alert', target: curFriendPhone})); }
 </script>
 </body>
 </html>
