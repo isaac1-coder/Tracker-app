@@ -30,11 +30,9 @@ var (
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" { port = "10000" }
-
 	http.HandleFunc("/ws", handleWS)
 	http.Handle("/", http.FileServer(http.Dir("./")))
-
-	log.Printf("Zenith Server Online: %s", port)
+	log.Printf("Zenith Prime Server Online: %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
@@ -42,13 +40,11 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil { return }
 	defer conn.Close()
-
 	var u *User
 
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil { break }
-
 		var d map[string]interface{}
 		if err := json.Unmarshal(msg, &d); err != nil { continue }
 		t, _ := d["type"].(string)
@@ -62,8 +58,6 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 					u = exist
 					u.Conn = conn
 					conn.WriteJSON(map[string]string{"type": "auth_ok"})
-				} else {
-					conn.WriteJSON(map[string]string{"type": "error", "msg": "Wrong Pass"})
 				}
 			} else {
 				u = &User{Phone: p, Nickname: n, Password: s, Friends: make(map[string]bool), Conn: conn}
@@ -73,40 +67,32 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		case "location":
 			if u != nil {
 				u.Lat, u.Lng = d["lat"].(float64), d["lng"].(float64)
-				broadcastLoc(u)
+				for friendPh := range u.Friends {
+					if f, ok := registry[friendPh]; ok && f.Conn != nil {
+						f.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": u.Phone, "n": u.Nickname, "lat": u.Lat, "lng": u.Lng})
+					}
+				}
 			}
 		case "add_friend":
 			if u != nil {
 				if f, ok := registry[d["target"].(string)]; ok {
 					u.Friends[f.Phone] = true
 					f.Friends[u.Phone] = true
-					syncPair(u, f)
+					f.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": u.Phone, "n": u.Nickname, "lat": u.Lat, "lng": u.Lng})
+					u.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": f.Phone, "n": f.Nickname, "lat": f.Lat, "lng": f.Lng})
 				}
 			}
-		case "chat", "react", "alert", "webrtc_signal":
+		case "chat", "react", "alert", "call_invite":
 			if u != nil {
 				if f, ok := registry[d["target"].(string)]; ok && f.Conn != nil {
 					d["from"] = u.Phone
 					d["fromNick"] = u.Nickname
 					f.Conn.WriteJSON(d)
-					if t == "chat" || t == "react" { u.Conn.WriteJSON(d) }
+					if t == "chat" { u.Conn.WriteJSON(d) }
 				}
 			}
 		}
 		regMu.Unlock()
 	}
-}
-
-func broadcastLoc(u *User) {
-	for p := range u.Friends {
-		if f, ok := registry[p]; ok && f.Conn != nil {
-			f.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": u.Phone, "n": u.Nickname, "lat": u.Lat, "lng": u.Lng})
-		}
-	}
-}
-
-func syncPair(a, b *User) {
-	a.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": b.Phone, "n": b.Nickname, "lat": b.Lat, "lng": b.Lng})
-	b.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": a.Phone, "n": a.Nickname, "lat": a.Lat, "lng": a.Lng})
 	runtime.GC()
 }
