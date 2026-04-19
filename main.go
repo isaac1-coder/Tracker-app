@@ -27,7 +27,6 @@ var (
 	upgrader      = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	activeCallers = make(map[string]bool)
 	callMutex     sync.Mutex
-	callTimer     *time.Timer
 )
 
 func main() {
@@ -37,7 +36,7 @@ func main() {
 	http.HandleFunc("/ws", handleWebSocket)
 	http.Handle("/", http.FileServer(http.Dir("./")))
 
-	log.Printf("Server starting on port %s", port)
+	log.Printf("Final Product running on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
@@ -53,21 +52,18 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		if err != nil { break }
 
 		var data map[string]interface{}
-		if err := json.Unmarshal(msg, &data); err != nil { continue }
+		json.Unmarshal(msg, &data)
 
 		userMutex.Lock()
-		msgType, ok := data["type"].(string)
-		if !ok { userMutex.Unlock(); continue }
+		msgType, _ := data["type"].(string)
 
 		switch msgType {
 		case "auth":
 			phone := data["phone"].(string)
 			pass := data["pass"].(string)
 			if u, ok := users[phone]; ok {
-				if u.Password == pass {
-					currentUser = u
-				} else {
-					conn.WriteJSON(map[string]string{"type": "error", "msg": "Wrong password"})
+				if u.Password == pass { currentUser = u } else {
+					conn.WriteJSON(map[string]string{"type": "error", "msg": "Invalid Password"})
 					userMutex.Unlock(); return
 				}
 			} else {
@@ -85,66 +81,62 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 
 		case "add_friend":
-			target := data["target"].(string)
-			if f, ok := users[target]; ok && currentUser != nil {
-				currentUser.Friends[target] = true
+			targetPhone := data["target"].(string)
+			if f, ok := users[targetPhone]; ok && currentUser != nil {
+				currentUser.Friends[targetPhone] = true
 				f.Friends[currentUser.Phone] = true
-				notify(f, "System", "Connected with "+currentUser.Phone)
-				notify(currentUser, "System", "Added "+target)
+				// Immediate Sync
+				sendLoc(f, currentUser)
+				sendLoc(currentUser, f)
+				notify(f, "System", currentUser.Phone + " added you!")
 			}
 
 		case "chat":
 			target := data["target"].(string)
 			if f, ok := users[target]; ok && currentUser != nil {
-				notify(f, currentUser.Phone, data["text"].(string))
+				f.Conn.WriteJSON(map[string]string{
+					"type": "chat_msg", "from": currentUser.Phone, "text": data["text"].(string),
+				})
 			}
 
-		case "call_request":
-			handleCall(currentUser, data["target"].(string))
+		case "call_init":
+			target := data["target"].(string)
+			callMutex.Lock()
+			if len(activeCallers) >= 2 {
+				notify(currentUser, "System", "Lines busy. Max 1 call allowed.")
+			} else if f, ok := users[target]; ok {
+				activeCallers[currentUser.Phone] = true
+				activeCallers[target] = true
+				f.Conn.WriteJSON(map[string]string{"type": "incoming_call", "from": currentUser.Phone})
+				// 3 Minute Auto-Kill
+				time.AfterFunc(3*time.Minute, func() {
+					callMutex.Lock()
+					delete(activeCallers, currentUser.Phone)
+					delete(activeCallers, target)
+					callMutex.Unlock()
+					runtime.GC()
+				})
+			}
+			callMutex.Unlock()
 		}
 		userMutex.Unlock()
 	}
 }
 
-func handleCall(u *User, targetPhone string) {
-	callMutex.Lock()
-	defer callMutex.Unlock()
-
-	if len(activeCallers) >= 2 {
-		notify(u, "System", "Busy: Max 2 callers global.")
-		return
+func sendLoc(to, about *User) {
+	if to.Conn != nil {
+		to.Conn.WriteJSON(map[string]interface{}{
+			"type": "loc_update", "phone": about.Phone, "lat": about.Lat, "lng": about.Lng,
+		})
 	}
-
-	target := users[targetPhone]
-	if target == nil { return }
-
-	activeCallers[u.Phone] = true
-	activeCallers[targetPhone] = true
-	
-	notify(target, "CALL", "Call from "+u.Phone)
-	notify(u, "CALL", "Call started with "+targetPhone)
-
-	if callTimer != nil { callTimer.Stop() }
-	callTimer = time.AfterFunc(3*time.Minute, func() {
-		callMutex.Lock()
-		activeCallers = make(map[string]bool)
-		callMutex.Unlock()
-		runtime.GC() // Clear RAM manually
-	})
 }
 
 func notify(u *User, from, msg string) {
-	if u.Conn != nil {
-		u.Conn.WriteJSON(map[string]string{"type": "msg", "from": from, "text": msg})
-	}
+	if u.Conn != nil { u.Conn.WriteJSON(map[string]string{"type": "note", "msg": msg}) }
 }
 
 func broadcastUpdate(u *User) {
 	for phone := range u.Friends {
-		if f, ok := users[phone]; ok && f.Conn != nil {
-			f.Conn.WriteJSON(map[string]interface{}{
-				"type": "loc_update", "phone": u.Phone, "lat": u.Lat, "lng": u.Lng,
-			})
-		}
+		if f, ok := users[phone]; ok { sendLoc(f, u) }
 	}
 }
