@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -7,69 +7,88 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root { --snap: #FFFC00; --blue: #00B6FF; --red: #FF4B4B; }
-        * { box-sizing: border-box; font-family: sans-serif; margin: 0; padding: 0; }
-        body, html { height: 100%; width: 100%; overflow: hidden; background: #000; }
+        * { box-sizing: border-box; font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 0; }
         
-        #auth { position: fixed; inset: 0; z-index: 10001; background: var(--snap); display: flex; align-items: center; justify-content: center; text-align: center; }
-        #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        /* Mobile Dynamic Height Fix */
+        body, html { height: 100dvh; width: 100vw; background: #000; overflow: hidden; position: fixed; }
+        
+        #map { position: absolute; inset: 0; z-index: 0; background: #222; }
 
-        .hud { position: absolute; top: 20px; width: 100%; z-index: 1000; display: flex; justify-content: center; pointer-events: none; }
-        .search { background: white; padding: 10px 25px; border-radius: 50px; display: flex; pointer-events: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 90%; max-width: 400px; }
-        
-        #sidebar { position: fixed; right: -100%; top: 0; bottom: 0; width: 350px; background: white; z-index: 5000; transition: 0.3s cubic-bezier(0.1, 0.7, 0.1, 1); display: flex; flex-direction: column; border-left: 1px solid #ddd; }
+        #auth { position: fixed; inset: 0; z-index: 10001; background: var(--snap); display: flex; align-items: center; justify-content: center; }
+        .auth-card { width: 85%; max-width: 400px; text-align: center; }
+        .auth-card h1 { font-size: 64px; margin-bottom: 20px; }
+
+        input { width: 100%; padding: 18px; margin: 8px 0; border-radius: 16px; border: none; font-size: 18px; outline: none; -webkit-appearance: none; }
+        .btn-black { width: 100%; padding: 20px; background: #000; color: #fff; border-radius: 50px; border: none; font-weight: bold; font-size: 18px; cursor: pointer; margin-top: 15px; }
+
+        /* HUD & Controls */
+        .hud { position: absolute; top: 15px; width: 100%; z-index: 1000; display: flex; justify-content: center; pointer-events: none; }
+        .search { background: rgba(255,255,255,0.95); padding: 5px 20px; border-radius: 50px; display: flex; pointer-events: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 92%; backdrop-filter: blur(10px); }
+
+        /* Mobile Sidebar Drawer */
+        #sidebar { position: fixed; right: -100%; top: 0; bottom: 0; width: 100%; max-width: 400px; background: white; z-index: 5000; transition: 0.4s cubic-bezier(0.1, 0.7, 0.1, 1); display: flex; flex-direction: column; }
         #sidebar.open { right: 0; }
-        
-        .avatar { width: 50px; height: 50px; background: var(--snap); border: 4px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 20px; }
-        .transcript-box { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: white; padding: 12px 24px; border-radius: 15px; z-index: 6000; font-size: 14px; display: none; width: 85%; text-align: center; line-height: 1.4; }
+        .side-head { padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .side-btns { padding: 15px; display: flex; gap: 12px; background: #f9f9f9; }
+        .s-btn { flex: 1; padding: 18px; border-radius: 16px; border: none; font-weight: bold; color: white; cursor: pointer; font-size: 16px; }
 
-        .call-ui { position: fixed; inset: 0; background: var(--blue); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
-        input { width: 100%; padding: 15px; margin: 8px 0; border-radius: 12px; border: none; font-size: 16px; outline: none; background: #fff; }
-        .btn-black { width: 100%; padding: 15px; background: #000; color: #fff; border-radius: 50px; border: none; font-weight: bold; font-size: 16px; cursor: pointer; }
+        #msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; background: #fff; }
+        .m { padding: 12px 18px; border-radius: 20px; font-size: 16px; max-width: 85%; line-height: 1.4; }
+        .m.me { align-self: flex-end; background: var(--blue); color: white; border-bottom-right-radius: 4px; }
+        .m.them { align-self: flex-start; background: #f0f0f0; color: black; border-bottom-left-radius: 4px; }
+
+        /* Call Overlay */
+        .call-ui { position: fixed; inset: 0; background: var(--blue); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; padding: 40px; }
+        .call-nick { font-size: 48px; margin: 30px 0; font-weight: bold; }
+        
+        .transcript-box { position: fixed; bottom: 100px; width: 90%; left: 5%; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 12px; z-index: 6000; font-size: 14px; text-align: center; min-height: 50px; display: none; border: 1px solid rgba(255,255,255,0.2); }
+
+        .avatar { width: 55px; height: 55px; background: var(--snap); border: 4px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-size: 22px; color: #000; }
     </style>
 </head>
 <body>
 
 <div id="auth">
-    <div style="width: 320px;">
-        <h1 style="font-size:60px; margin-bottom:10px">👻</h1>
-        <input id="ph" type="tel" placeholder="Phone Number">
+    <div class="auth-card">
+        <h1>👻</h1>
+        <input id="ph" type="tel" placeholder="Phone Number" inputmode="tel">
         <input id="ni" type="text" placeholder="Nickname">
         <input id="ps" type="password" placeholder="Password">
         <button onclick="saveAuth()" class="btn-black">LOG IN</button>
     </div>
 </div>
 
-<div class="hud"><div class="search"><input id="fIn" placeholder="Add phone #" style="border:none;outline:none;flex:1"><button onclick="addFriend()" style="border:none;background:none;color:var(--blue);font-weight:bold;cursor:pointer">ADD</button></div></div>
+<div class="hud"><div class="search"><input id="fIn" placeholder="Enter phone #" style="border:none;outline:none;flex:1;background:transparent"><button onclick="addFriend()" style="border:none;background:none;color:var(--blue);font-weight:bold;font-size:16px;padding:10px">ADD</button></div></div>
 
 <div id="sidebar">
-    <div style="padding:25px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center">
-        <h2 id="sNick">Name</h2><button onclick="closeSide()" style="border:none;background:none;font-size:24px;cursor:pointer">✕</button>
+    <div class="side-head">
+        <h2 id="sNick">Name</h2><button onclick="closeSide()" style="border:none;background:none;font-size:32px;padding:10px">✕</button>
     </div>
-    <div style="padding:15px; display:flex; gap:10px; background:#f9f9f9">
-        <button onclick="startVoiceCall()" style="flex:1; background:var(--blue); color:white; border:none; padding:12px; border-radius:12px; font-weight:bold; cursor:pointer">CALL</button>
-        <button onclick="sendAlert()" style="flex:1; background:var(--red); color:white; border:none; padding:12px; border-radius:12px; font-weight:bold; cursor:pointer">ALERT</button>
+    <div class="side-btns">
+        <button onclick="startVoiceCall()" class="s-btn" style="background:var(--blue)">CALL</button>
+        <button onclick="sendAlert()" class="s-btn" style="background:var(--red)">ALERT</button>
     </div>
-    <div id="msgs" style="flex:1; overflow:auto; padding:20px; display:flex; flex-direction:column; gap:10px"></div>
-    <div style="padding:20px; border-top:1px solid #eee; display:flex; gap:10px">
-        <input id="cIn" onkeydown="if(event.key==='Enter') sendChat()" placeholder="Type message..." style="flex:1; background:#f0f0f0; border-radius:10px; padding:12px">
-        <button onclick="sendChat()" style="background:var(--snap); border:none; padding:12px 20px; border-radius:10px; font-weight:bold; cursor:pointer">SEND</button>
+    <div id="msgs"></div>
+    <div style="padding:15px; border-top:1px solid #eee; display:flex; gap:10px; padding-bottom: calc(15px + env(safe-area-inset-bottom))">
+        <input id="cIn" onkeydown="if(event.key==='Enter') sendChat()" placeholder="Type a message..." style="flex:1; background:#f0f0f0; border-radius:15px; padding:15px">
+        <button onclick="sendChat()" style="background:var(--snap); border:none; padding:0 20px; border-radius:15px; font-weight:bold">SEND</button>
     </div>
 </div>
 
 <div class="call-ui" id="callUi">
-    <h2>VOICE CALL ACTIVE</h2><h1 id="callNick" style="margin:20px 0; font-size:42px">...</h1>
-    <button onclick="location.reload()" style="background:white; color:red; padding:15px 45px; border-radius:50px; border:none; font-weight:bold; cursor:pointer">END SESSION</button>
+    <h2>VOICE CALL</h2><h1 id="callNick" class="call-nick">...</h1>
+    <button onclick="location.reload()" style="background:white; color:red; padding:20px 60px; border-radius:50px; border:none; font-weight:bold; font-size:18px">END</button>
 </div>
 
-<div class="transcript-box" id="transBox">Transcription running...</div>
+<div class="transcript-box" id="transBox">Transcription is listening...</div>
 <div id="map"></div>
-<audio id="rAudio" autoplay></audio>
+<audio id="rAudio" autoplay playsinline></audio>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     let ws, map, myP, markers = {}, curFriend, pc;
-    const friendsKey = "snap_friends_persist";
-    const authKey = "snap_auth_persist";
+    const friendsKey = "snap_friends_v3";
+    const authKey = "snap_auth_v3";
 
     window.onload = () => {
         const auth = JSON.parse(localStorage.getItem(authKey));
@@ -83,6 +102,7 @@
 
     function saveAuth() {
         const p = document.getElementById('ph').value, n = document.getElementById('ni').value, s = document.getElementById('ps').value;
+        if(!p || !n || !s) return alert("Fill all fields");
         localStorage.setItem(authKey, JSON.stringify({p, n, s}));
         doAuth(p, n, s);
     }
@@ -93,9 +113,7 @@
         ws = new WebSocket(`${proto}://${location.host}/ws`);
         ws.onopen = () => {
             ws.send(JSON.stringify({type:'auth', phone:p, nick:n, pass:s}));
-            // SYNC FRIENDS ON RELOAD
-            const list = JSON.parse(localStorage.getItem(friendsKey) || "[]");
-            list.forEach(f => ws.send(JSON.stringify({type:'add_friend', target:f})));
+            JSON.parse(localStorage.getItem(friendsKey) || "[]").forEach(f => ws.send(JSON.stringify({type:'add_friend', target:f})));
         };
         ws.onmessage = (e) => {
             const d = JSON.parse(e.data);
@@ -109,10 +127,9 @@
 
     function initMap() {
         if(map) return;
-        map = L.map('map', {zoomControl: false}).setView([0,0], 2);
+        map = L.map('map', {zoomControl: false, tap: false}).setView([0,0], 2);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        // FORCE MAP RENDER FIX
-        setInterval(() => map.invalidateSize(), 1000);
+        setInterval(() => map.invalidateSize(), 1500);
     }
 
     function track() {
@@ -124,7 +141,7 @@
     function updateMarkers(d) {
         if(d.p === myP) return;
         if(!markers[d.p]) {
-            const icon = L.divIcon({className:'', html:`<div class="avatar">${d.n[0]}</div>`});
+            const icon = L.divIcon({className:'', iconSize: [55,55], html:`<div class="avatar">${d.n[0]}</div>`});
             markers[d.p] = L.marker([d.lat, d.lng], {icon}).addTo(map).on('click', () => {
                 curFriend = d.p; document.getElementById('sNick').innerText = d.n; document.getElementById('sidebar').classList.add('open');
             });
@@ -140,31 +157,20 @@
         document.getElementById('fIn').value = "";
     }
 
-    // WEBRTC CALLING
     async function startVoiceCall() {
         document.getElementById('callUi').style.display='flex';
         document.getElementById('callNick').innerText = document.getElementById('sNick').innerText;
-        pc = new RTCPeerConnection({iceServers: [{urls:'stun:stun.l.google.com:19302'}]});
-        const stream = await navigator.mediaDevices.getUserMedia({audio: true});
-        stream.getTracks().forEach(t => pc.addTrack(t, stream));
-        pc.onicecandidate = e => e.candidate && ws.send(JSON.stringify({type:'call_signal', target:curFriend, candidate:e.candidate}));
-        pc.ontrack = e => document.getElementById('rAudio').srcObject = e.streams[0];
+        await createPC(curFriend);
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         ws.send(JSON.stringify({type:'call_signal', target:curFriend, sdp:offer}));
-        setupTranscription();
     }
 
     async function handleCallSignal(d) {
         if(!pc) {
-            pc = new RTCPeerConnection({iceServers: [{urls:'stun:stun.l.google.com:19302'}]});
-            const stream = await navigator.mediaDevices.getUserMedia({audio: true});
-            stream.getTracks().forEach(t => pc.addTrack(t, stream));
-            pc.onicecandidate = e => e.candidate && ws.send(JSON.stringify({type:'call_signal', target:d.from, candidate:e.candidate}));
-            pc.ontrack = e => document.getElementById('rAudio').srcObject = e.streams[0];
             document.getElementById('callUi').style.display='flex';
             document.getElementById('callNick').innerText = d.fromNick;
-            setupTranscription();
+            await createPC(d.from);
         }
         if(d.sdp) {
             await pc.setRemoteDescription(new RTCSessionDescription(d.sdp));
@@ -174,6 +180,15 @@
                 ws.send(JSON.stringify({type:'call_signal', target:d.from, sdp:ans}));
             }
         } else if(d.candidate) await pc.addIceCandidate(new RTCIceCandidate(d.candidate));
+    }
+
+    async function createPC(target) {
+        pc = new RTCPeerConnection({iceServers: [{urls:'stun:stun.l.google.com:19302'}]});
+        const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+        stream.getTracks().forEach(t => pc.addTrack(t, stream));
+        pc.onicecandidate = e => e.candidate && ws.send(JSON.stringify({type:'call_signal', target, candidate:e.candidate}));
+        pc.ontrack = e => { document.getElementById('rAudio').srcObject = e.streams[0]; };
+        setupTranscription();
     }
 
     function setupTranscription() {
@@ -198,9 +213,7 @@
     function renderChat(d) {
         const m = document.getElementById('msgs');
         const div = document.createElement('div');
-        div.style.background = d.from === myP ? "var(--blue)" : "#eee";
-        div.style.color = d.from === myP ? "white" : "black";
-        div.style.padding = "10px"; div.style.borderRadius = "10px"; div.style.alignSelf = d.from === myP ? "flex-end" : "flex-start";
+        div.className = `m ${d.from === myP ? 'me' : 'them'}`;
         div.innerText = d.text; m.appendChild(div); m.scrollTop = m.scrollHeight;
     }
     function sendAlert() { ws.send(JSON.stringify({type:'alert', target:curFriend})); }
