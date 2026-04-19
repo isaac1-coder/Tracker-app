@@ -7,7 +7,6 @@ import (
 	"os"
 	"runtime"
 	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -35,7 +34,6 @@ type Packet struct {
 	MsgID    string  `json:"msgId,omitempty"`
 	ReplyTo  string  `json:"replyTo,omitempty"`
 	Accept   bool    `json:"accept,omitempty"`
-	Msg      string  `json:"msg,omitempty"`
 }
 
 var (
@@ -51,7 +49,7 @@ func main() {
 	http.HandleFunc("/ws", handleWS)
 	http.Handle("/", http.FileServer(http.Dir("./")))
 
-	log.Printf("Server online on :%s", port)
+	log.Printf("Titan Server Online: %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
