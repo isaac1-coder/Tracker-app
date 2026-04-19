@@ -1,90 +1,110 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SnapTracker Pro</title>
+    <title>SnapTracker Ultra</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --snap: #FFFC00; --blue: #00B6FF; --red: #FF4B4B; }
-        * { box-sizing: border-box; font-family: 'Avenir Next', sans-serif; margin: 0; padding: 0; }
-        body, html { height: 100%; width: 100%; background: #eee; overflow: hidden; }
+        :root { --snap: #FFFC00; --blue: #00B6FF; --red: #FF4B4B; --glass: rgba(255, 255, 255, 0.9); }
+        * { box-sizing: border-box; font-family: 'Avenir Next', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #e0e0e0; overflow: hidden; }
 
-        /* Auth */
-        #auth-screen { position: fixed; inset: 0; z-index: 10000; background: var(--snap); display: flex; align-items: center; justify-content: center; text-align: center; }
-        .auth-box { width: 320px; }
-        input { width: 100%; padding: 15px; margin: 8px 0; border-radius: 12px; border: none; font-size: 16px; outline: none; }
-        .btn-black { width: 100%; padding: 15px; border-radius: 50px; background: black; color: white; border: none; font-weight: 800; cursor: pointer; }
+        /* Auth Screen */
+        #auth { position: fixed; inset: 0; z-index: 10000; background: var(--snap); display: flex; align-items: center; justify-content: center; transition: 0.5s; }
+        .auth-card { width: 90%; max-width: 350px; text-align: center; }
+        .auth-card h1 { font-size: 50px; margin-bottom: 20px; }
+        input { width: 100%; padding: 18px; margin: 10px 0; border-radius: 15px; border: none; font-size: 16px; outline: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .btn-log { width: 100%; padding: 18px; border-radius: 50px; background: black; color: white; border: none; font-weight: 800; font-size: 16px; cursor: pointer; margin-top: 10px; }
 
-        /* Map */
-        #map { height: 100vh; width: 100vw; position: absolute; top:0; left:0; z-index: 1; background: #ccc; }
+        /* Map Container */
+        #map { position: absolute; inset: 0; z-index: 1; background: #ddd; }
 
-        /* UI elements */
-        .hud { position: absolute; top: 15px; width: 100%; display: flex; justify-content: center; z-index: 1000; pointer-events: none; }
-        .search { background: white; width: 90%; max-width: 400px; padding: 10px 20px; border-radius: 50px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: flex; pointer-events: auto; }
-        
-        .avatar { width: 50px !important; height: 50px !important; background: var(--snap); border: 4px solid white; border-radius: 50% !important; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 18px; }
-        .nick-label { background: white; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 900; margin-top: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        /* HUD */
+        .hud-top { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; width: 90%; max-width: 450px; pointer-events: none; }
+        .search-box { background: var(--glass); padding: 5px 20px; border-radius: 50px; display: flex; align-items: center; box-shadow: 0 8px 32px rgba(0,0,0,0.1); pointer-events: auto; backdrop-filter: blur(10px); }
+        .search-box input { background: transparent; box-shadow: none; padding: 12px; margin: 0; }
 
-        /* Sidebar */
-        #sidebar { position: fixed; right: -100%; top: 0; bottom: 0; width: 350px; background: white; z-index: 5000; transition: 0.3s ease; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.1); }
+        /* Custom Snapchat Marker */
+        .snap-marker { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .avatar-circle { 
+            width: 54px !important; height: 54px !important; 
+            background: var(--snap); border: 4px solid white; 
+            border-radius: 50% !important; display: flex; align-items: center; justify-content: center; 
+            font-weight: 900; box-shadow: 0 6px 15px rgba(0,0,0,0.25); font-size: 20px; color: black;
+        }
+        .name-tag { background: white; padding: 3px 12px; border-radius: 12px; font-size: 12px; font-weight: 800; margin-top: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); white-space: nowrap; }
+
+        /* Sidebar Chat */
+        #sidebar { 
+            position: fixed; right: -100%; top: 0; bottom: 0; width: 380px; 
+            background: white; z-index: 5000; transition: 0.4s cubic-bezier(0.19, 1, 0.22, 1); 
+            display: flex; flex-direction: column; box-shadow: -15px 0 45px rgba(0,0,0,0.1);
+        }
         #sidebar.open { right: 0; }
-        .side-header { padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        #chat-msgs { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-        .msg { padding: 10px 15px; border-radius: 18px; font-size: 14px; max-width: 80%; }
-        .msg.me { align-self: flex-end; background: var(--blue); color: white; }
-        .msg.them { align-self: flex-start; background: #f0f0f0; }
+        .side-head { padding: 25px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+        .side-btns { padding: 15px 25px; display: flex; gap: 10px; border-bottom: 1px solid #f0f0f0; background: #fafafa; }
+        .s-btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; color: white; cursor: pointer; transition: 0.2s; }
+        .s-btn:active { transform: scale(0.95); }
 
-        /* Call Overlay */
-        #call-overlay { position: fixed; inset: 0; background: var(--blue); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
-        .btn-call { padding: 15px 40px; border-radius: 50px; border: none; font-weight: bold; cursor: pointer; margin: 10px; font-size: 16px; }
+        #msgs { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #fff; }
+        .m { padding: 12px 18px; border-radius: 20px; font-size: 15px; max-width: 80%; line-height: 1.4; }
+        .m.me { align-self: flex-end; background: var(--blue); color: white; border-bottom-right-radius: 4px; }
+        .m.them { align-self: flex-start; background: #f0f2f5; color: black; border-bottom-left-radius: 4px; }
 
-        .snap-note { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 25px; border-radius: 50px; font-weight: bold; z-index: 10001; box-shadow: 0 10px 30px rgba(0,0,0,0.2); cursor: pointer; }
+        /* Calling / Alerts */
+        #call-ui { position: fixed; inset: 0; background: var(--blue); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
+        .call-btn-row { display: flex; gap: 20px; margin-top: 40px; }
+        .c-round { width: 80px; height: 80px; border-radius: 50%; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+
+        .toast { position: fixed; top: 25px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 25px; border-radius: 50px; font-weight: bold; box-shadow: 0 10px 40px rgba(0,0,0,0.2); z-index: 10001; cursor: pointer; animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop { from { transform: translate(-50%, -100px); } to { transform: translate(-50%, 0); } }
         .hidden { display: none !important; }
-        @media (max-width: 400px) { #sidebar { width: 100%; } }
+
+        @media (max-width: 450px) { #sidebar { width: 100%; } }
     </style>
 </head>
 <body>
 
-<div id="auth-screen">
-    <div class="auth-box">
-        <h1 style="font-size: 50px">👻</h1>
-        <input id="phone" type="tel" placeholder="Phone Number">
-        <input id="nick" type="text" placeholder="Nickname">
-        <input id="pass" type="password" placeholder="Password">
-        <button class="btn-black" onclick="handleAuth()">LOG IN</button>
+<div id="auth">
+    <div class="auth-card">
+        <h1>👻</h1>
+        <input id="ph" type="tel" placeholder="Phone Number">
+        <input id="ni" type="text" placeholder="Nickname">
+        <input id="ps" type="password" placeholder="Password">
+        <button class="btn-log" onclick="doAuth()">Enter Map</button>
     </div>
 </div>
 
-<div class="hud hidden" id="hud">
-    <div class="search">
-        <input id="fInput" placeholder="Add phone #" style="border:none; width:100%; outline:none">
-        <button onclick="addF()" style="background:none; border:none; color:var(--blue); font-weight:bold; cursor:pointer">ADD</button>
+<div class="hud-top hidden" id="hud">
+    <div class="search-box">
+        <input id="friendInp" placeholder="Add phone #" style="flex:1; border:none; outline:none">
+        <button onclick="addFriend()" style="background:none; border:none; color:var(--blue); font-weight:bold; cursor:pointer">ADD</button>
     </div>
 </div>
 
 <div id="sidebar">
-    <div class="side-header">
-        <h2 id="side-nick">Name</h2>
-        <button onclick="closeSide()" style="border:none; background:none; font-size: 20px;">✕</button>
+    <div class="side-head">
+        <h2 id="side-name">Friend</h2>
+        <button onclick="closeSide()" style="background:none; border:none; font-size:24px; cursor:pointer">✕</button>
     </div>
-    <div style="padding: 10px; display: flex; gap: 5px;">
-        <button onclick="initCall()" style="flex:1; background:var(--blue); color:white; border:none; padding:10px; border-radius:10px; font-weight:bold">CALL</button>
-        <button onclick="sendAlert()" style="flex:1; background:var(--red); color:white; border:none; padding:10px; border-radius:10px; font-weight:bold">ALERT</button>
+    <div class="side-btns">
+        <button class="s-btn" style="background:var(--blue)" onclick="makeCall()">CALL</button>
+        <button class="s-btn" style="background:var(--red)" onclick="sendAlert()">ALERT</button>
     </div>
-    <div id="chat-msgs"></div>
-    <div style="padding:15px; border-top:1px solid #eee; display:flex; gap:10px">
-        <input id="cInput" placeholder="Chat..." style="background:#f0f0f0; outline:none" onkeydown="if(event.key==='Enter') sendChat()">
-        <button onclick="sendChat()" style="background:var(--snap); border:none; padding:0 15px; border-radius:10px; font-weight:bold">SEND</button>
+    <div id="msgs"></div>
+    <div style="padding:20px; display:flex; gap:10px; border-top:1px solid #eee">
+        <input id="chatInp" placeholder="Send a Chat..." style="background:#f0f2f5; margin:0; outline:none" onkeydown="if(event.key==='Enter') sendChat()">
+        <button onclick="sendChat()" style="background:var(--snap); border:none; padding:0 25px; border-radius:15px; font-weight:bold">SEND</button>
     </div>
 </div>
 
-<div id="call-overlay">
+<div id="call-ui">
     <h2 id="call-status">INCOMING CALL</h2>
-    <h1 id="call-name" style="font-size: 40px; margin: 20px 0;">Friend</h1>
-    <div>
-        <button class="btn-call" style="background:red; color:white" onclick="endCall()">DECLINE</button>
-        <button id="accept-btn" class="btn-call" style="background:white; color:var(--blue)" onclick="acceptCall()">ACCEPT</button>
+    <h1 id="call-nick" style="font-size: 48px; margin: 20px 0;">Friend</h1>
+    <div class="call-btn-row">
+        <button class="c-round" style="background:white; color:var(--red)" onclick="hangup()">END</button>
+        <button id="acc-btn" class="c-round" style="background:white; color:var(--blue)" onclick="acceptCall()">ACCEPT</button>
     </div>
 </div>
 
@@ -92,135 +112,152 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    let ws, map, myPhone, myNick, markers = {}, curFriendPhone, chatHistory = {};
+    let ws, map, myP, myN, markers = {}, curTgt, history = {};
     const alertSnd = new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3');
+    const ringSnd = new Audio('https://assets.mixkit.co/active_storage/sfx/1350/1350-preview.mp3');
+    ringSnd.loop = true;
 
-    // Restore Cache
+    // Cache Login
     window.onload = () => {
-        const cache = JSON.parse(localStorage.getItem('user_prime'));
-        if(cache) {
-            document.getElementById('phone').value = cache.p;
-            document.getElementById('nick').value = cache.n;
-            document.getElementById('pass').value = cache.s;
-            login(cache.p, cache.n, cache.s);
+        const c = JSON.parse(localStorage.getItem('sn_cache'));
+        if(c) {
+            document.getElementById('ph').value = c.p;
+            document.getElementById('ni').value = c.n;
+            document.getElementById('ps').value = c.s;
+            initSession(c.p, c.n, c.s);
         }
     };
 
-    function handleAuth() {
-        const p = document.getElementById('phone').value;
-        const n = document.getElementById('nick').value;
-        const s = document.getElementById('pass').value;
-        localStorage.setItem('user_prime', JSON.stringify({p, n, s}));
-        login(p, n, s);
+    function doAuth() {
+        const p = document.getElementById('ph').value, n = document.getElementById('ni').value, s = document.getElementById('ps').value;
+        localStorage.setItem('sn_cache', JSON.stringify({p, n, s}));
+        initSession(p, n, s);
     }
 
-    function login(phone, nick, pass) {
-        myPhone = phone; myNick = nick;
-        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-        ws = new WebSocket(`${protocol}://${location.host}/ws`);
+    function initSession(p, n, s) {
+        myP = p; myN = n;
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        ws = new WebSocket(`${proto}://${location.host}/ws`);
 
-        ws.onopen = () => ws.send(JSON.stringify({type:'auth', phone, nick, pass}));
+        ws.onopen = () => ws.send(JSON.stringify({type:'auth', phone:p, nick:n, pass:s}));
         ws.onmessage = (e) => {
             const d = JSON.parse(e.data);
-            if(d.type==='auth_success') {
-                document.getElementById('auth-screen').style.display='none';
+            if(d.type === 'auth_ok') {
+                document.getElementById('auth').style.opacity = '0';
+                setTimeout(() => document.getElementById('auth').classList.add('hidden'), 500);
                 document.getElementById('hud').classList.remove('hidden');
                 initMap();
-                track();
+                trackLoc();
             }
-            if(d.type==='loc_update') updateMarkers(d);
-            if(d.type==='chat_msg') {
-                const partner = d.fromPhone === myPhone ? curFriendPhone : d.fromPhone;
-                if(!chatHistory[partner]) chatHistory[partner] = [];
-                chatHistory[partner].push(d);
-                if(curFriendPhone === partner) renderChat();
-                if(d.fromPhone !== myPhone) showNote(d.fromNick, d.text, d.fromPhone);
+            if(d.type === 'loc') updateMap(d);
+            if(d.type === 'chat') handleChat(d);
+            if(d.type === 'ring_alert') { alertSnd.play(); showToast(d.from, "is alerting you!"); }
+            if(d.type === 'incoming_call') {
+                document.getElementById('call-ui').style.display = 'flex';
+                document.getElementById('call-nick').innerText = d.from;
+                window.callerP = d.phone;
+                ringSnd.play();
             }
-            if(d.type==='ring') { alertSnd.play(); showNote("ALERT", d.from + " is ringing you!", ""); }
-            if(d.type==='incoming_call') {
-                document.getElementById('call-overlay').style.display='flex';
-                document.getElementById('call-name').innerText = d.from;
-                window.callerId = d.phone;
-            }
-            if(d.type==='call_connected') {
+            if(d.type === 'call_live') {
                 document.getElementById('call-status').innerText = "CONNECTED (3:00)";
-                document.getElementById('accept-btn').style.display = 'none';
+                document.getElementById('acc-btn').classList.add('hidden');
+                ringSnd.pause();
             }
+            if(d.type === 'call_ended') {
+                document.getElementById('call-ui').style.display = 'none';
+                ringSnd.pause(); ringSnd.currentTime = 0;
+            }
+            if(d.type === 'note') showToast("System", d.msg);
         };
     }
 
     function initMap() {
         if(map) return;
-        map = L.map('map', {zoomControl: false, attributionControl: false}).setView([0,0], 2);
+        // Fix for grey map: ensure container is active before init
+        map = L.map('map', { zoomControl: false, attributionControl: false }).setView([0,0], 2);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/voyager_all/{z}/{x}/{y}{r}.png').addTo(map);
         
-        // Force map refresh every few seconds to prevent grey screen
-        setInterval(() => map.invalidateSize(), 2000);
+        // Forced resizing loop - ensures the map never breaks
+        let refresh = setInterval(() => {
+            map.invalidateSize();
+            if(Object.keys(markers).length > 0) clearInterval(refresh);
+        }, 1000);
     }
 
-    function track() {
-        navigator.geolocation.watchPosition(p => {
-            ws.send(JSON.stringify({type:'location', lat:p.coords.latitude, lng:p.coords.longitude}));
+    function trackLoc() {
+        navigator.geolocation.watchPosition(pos => {
+            if(ws.readyState === 1) ws.send(JSON.stringify({type:'location', lat:pos.coords.latitude, lng:pos.coords.longitude}));
         }, null, {enableHighAccuracy: true});
     }
 
-    function updateMarkers(d) {
-        if(d.phone === myPhone) return;
-        if(!markers[d.phone]) {
+    function updateMap(d) {
+        if(d.p === myP) return;
+        const ll = [d.lat, d.lng];
+        if(!markers[d.p]) {
             const icon = L.divIcon({
-                className: '',
-                html: `<div class="avatar">${d.nick[0]}</div><div class="nick-label">${d.nick}</div>`
+                className: 'snap-marker',
+                iconSize: [60, 90],
+                html: `<div class="avatar-circle">${d.n[0]}</div><div class="name-tag">${d.n}</div>`
             });
-            markers[d.phone] = L.marker([d.lat, d.lng], {icon}).addTo(map).on('click', () => openSide(d.phone, d.nick));
+            markers[d.p] = L.marker(ll, {icon}).addTo(map).on('click', () => openSide(d.p, d.n));
         } else {
-            markers[d.phone].setLatLng([d.lat, d.lng]);
+            markers[d.p].setLatLng(ll);
         }
     }
 
-    function openSide(phone, nick) {
-        curFriendPhone = phone;
-        document.getElementById('side-nick').innerText = nick;
+    function openSide(p, n) {
+        curTgt = p;
+        document.getElementById('side-name').innerText = n;
         document.getElementById('sidebar').classList.add('open');
         renderChat();
     }
-    function closeSide() { document.getElementById('sidebar').classList.remove('open'); }
+    function closeSide() { document.getElementById('sidebar').classList.remove('open'); curTgt = null; }
+
+    function handleChat(d) {
+        const p = d.from === myP ? curTgt : d.from;
+        if(!history[p]) history[p] = [];
+        history[p].push(d);
+        if(curTgt === p) renderChat();
+        if(d.from !== myP) showToast(d.nick, d.text, d.from);
+    }
 
     function renderChat() {
-        const box = document.getElementById('chat-msgs');
-        box.innerHTML = "";
-        (chatHistory[curFriendPhone] || []).forEach(m => {
-            const div = document.createElement('div');
-            div.className = `msg ${m.fromPhone === myPhone ? 'me' : 'them'}`;
-            div.innerText = m.text;
-            box.appendChild(div);
+        const b = document.getElementById('msgs');
+        b.innerHTML = "";
+        (history[curTgt] || []).forEach(m => {
+            const d = document.createElement('div');
+            d.className = `m ${m.from === myP ? 'me' : 'them'}`;
+            d.innerText = m.text;
+            b.appendChild(d);
         });
-        box.scrollTop = 99999;
+        b.scrollTop = b.scrollHeight;
     }
 
     function sendChat() {
-        const i = document.getElementById('cInput');
-        if(!i.value) return;
-        ws.send(JSON.stringify({type:'chat', target: curFriendPhone, text: i.value}));
+        const i = document.getElementById('chatInp');
+        if(!i.value || !curTgt) return;
+        ws.send(JSON.stringify({type:'chat', target: curTgt, text: i.value}));
         i.value = "";
     }
 
-    function initCall() { ws.send(JSON.stringify({type:'call_request', target: curFriendPhone})); }
-    function acceptCall() { ws.send(JSON.stringify({type:'call_accepted', caller: window.callerId})); }
-    function endCall() { document.getElementById('call-overlay').style.display='none'; }
-    function sendAlert() { ws.send(JSON.stringify({type:'alert', target: curFriendPhone})); }
+    function makeCall() { ws.send(JSON.stringify({type:'call_init', target: curTgt})); showToast("Dialing...", "Connecting to "+curTgt); }
+    function acceptCall() { ws.send(JSON.stringify({type:'call_accept', caller: window.callerP})); }
+    function hangup() { ws.send(JSON.stringify({type:'call_hangup'})); }
+    function sendAlert() { ws.send(JSON.stringify({type:'alert', target: curTgt})); }
 
-    function showNote(title, msg, phone) {
-        const n = document.createElement('div');
-        n.className = 'snap-note';
-        n.innerHTML = `<b>${title}</b><br>${msg}`;
-        if(phone) n.onclick = () => { openSide(phone, title); n.remove(); };
-        document.body.appendChild(n);
-        setTimeout(() => n.remove(), 4000);
+    function showToast(t, m, p) {
+        const d = document.createElement('div');
+        d.className = 'toast';
+        d.innerHTML = `<strong>${t}</strong><br>${m}`;
+        if(p) d.onclick = () => { openSide(p, t); d.remove(); };
+        document.body.appendChild(d);
+        setTimeout(() => d.remove(), 4000);
     }
 
-    function addF() {
-        ws.send(JSON.stringify({type:'add_friend', target: document.getElementById('fInput').value}));
-        document.getElementById('fInput').value = "";
+    function addFriend() {
+        const v = document.getElementById('friendInp').value;
+        if(v) ws.send(JSON.stringify({type:'add_friend', target: v}));
+        document.getElementById('friendInp').value = "";
     }
 </script>
 </body>
