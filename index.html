@@ -3,52 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>SnapTracker Pro</title>
+    <title>Tracker Pro Zenith</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --snap: #FFFC00; --blue: #007AFF; --red: #FF3B30; --bg: #f2f2f7; }
-        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        body, html { height: 100dvh; width: 100vw; overflow: hidden; background: #000; }
+        :root { --snap: #FFFC00; --blue: #007AFF; --red: #FF3B30; --bg: #000; }
+        * { box-sizing: border-box; font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body, html { height: 100dvh; width: 100vw; overflow: hidden; background: var(--bg); color: white; }
         
-        /* Map Visibility Fix */
-        #map { position: absolute; inset: 0; z-index: 1; background: #222; }
+        /* Map Layout */
+        #map { position: absolute; inset: 0; z-index: 1; background: #111; }
 
-        /* Modern Auth */
-        #auth-gate { position: fixed; inset: 0; z-index: 20000; background: var(--snap); display: flex; align-items: center; justify-content: center; }
-        .auth-card { width: 85%; max-width: 380px; text-align: center; }
-        input { width: 100%; padding: 18px; margin: 8px 0; border-radius: 16px; border: none; font-size: 18px; outline: none; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .btn-black { width: 100%; padding: 20px; background: black; color: white; border-radius: 50px; border: none; font-weight: 900; font-size: 18px; cursor: pointer; margin-top: 15px; }
+        /* Auth Gate */
+        #auth-gate { position: fixed; inset: 0; z-index: 10000; background: var(--snap); display: flex; align-items: center; justify-content: center; transition: 0.5s ease-out; }
+        .auth-card { width: 85%; max-width: 380px; text-align: center; color: black; }
+        input { width: 100%; padding: 18px; margin: 8px 0; border-radius: 15px; border: none; font-size: 16px; outline: none; background: white; }
+        .btn-black { width: 100%; padding: 20px; background: black; color: white; border-radius: 50px; border: none; font-weight: 900; cursor: pointer; }
 
-        /* HUD */
-        .hud-top { position: absolute; top: env(safe-area-inset-top, 20px); width: 100%; z-index: 1000; display: flex; justify-content: center; pointer-events: none; }
-        .search-bar { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(25px); padding: 5px 20px; border-radius: 50px; display: flex; align-items: center; width: 92%; max-width: 450px; box-shadow: 0 10px 40px rgba(0,0,0,0.25); pointer-events: auto; }
+        /* HUD - Top Bar */
+        .hud { position: absolute; top: env(safe-area-inset-top, 20px); width: 100%; z-index: 1000; display: flex; justify-content: center; pointer-events: none; }
+        .search-bar { background: rgba(255,255,255,0.9); backdrop-filter: blur(15px); padding: 5px 20px; border-radius: 50px; display: flex; align-items: center; width: 90%; max-width: 450px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); pointer-events: auto; }
+        .search-bar input { background: transparent; border: none; flex: 1; padding: 12px; outline: none; color: black; font-weight: 600; }
 
-        /* Snapchat-Style Chat */
-        #chat-sidebar { position: fixed; left: 0; bottom: -100%; width: 100%; height: 94dvh; background: white; z-index: 15000; transition: 0.4s cubic-bezier(0.1, 0.7, 0.1, 1); border-radius: 30px 30px 0 0; display: flex; flex-direction: column; }
-        #chat-sidebar.open { bottom: 0; }
-        .chat-head { padding: 25px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .chat-tools { display: flex; gap: 12px; padding: 15px 25px; background: #f9f9f9; }
-        .tool-btn { flex: 1; padding: 15px; border-radius: 15px; border: none; font-weight: 800; color: white; cursor: pointer; font-size: 12px; }
+        /* SIDEBAR CHAT */
+        #sidebar { position: fixed; right: -100%; top: 0; bottom: 0; width: 380px; background: white; z-index: 5000; transition: 0.4s cubic-bezier(0.19, 1, 0.22, 1); display: flex; flex-direction: column; color: black; box-shadow: -10px 0 50px rgba(0,0,0,0.3); }
+        #sidebar.open { right: 0; }
+        .side-head { padding: 25px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .side-tools { display: flex; gap: 10px; padding: 15px 25px; background: #f8f8f8; }
+        .tool-btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; color: white; cursor: pointer; }
 
-        #msg-feed { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
-        .bubble { padding: 14px 20px; border-radius: 22px; font-size: 16px; max-width: 80%; line-height: 1.4; position: relative; background: #e9e9eb; color: #000; }
+        #msg-feed { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .bubble { padding: 12px 18px; border-radius: 20px; font-size: 15px; max-width: 80%; line-height: 1.4; background: #eee; position: relative; }
         .bubble.me { align-self: flex-end; background: var(--blue); color: white; border-bottom-right-radius: 4px; }
         .bubble.them { align-self: flex-start; border-bottom-left-radius: 4px; }
-        
-        .reply-meta { font-size: 11px; padding: 6px 10px; background: rgba(0,0,0,0.06); border-radius: 12px; margin-bottom: 6px; border-left: 3px solid var(--blue); }
-        .reaction { position: absolute; bottom: -12px; right: 10px; background: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .reply-meta { font-size: 11px; opacity: 0.6; margin-bottom: 4px; border-left: 2px solid #aaa; padding-left: 5px; }
 
-        /* Notifications (Bottom Right) */
-        #toast-hub { position: fixed; bottom: 30px; right: 20px; z-index: 18000; display: flex; flex-direction: column; gap: 12px; align-items: flex-end; pointer-events: none; }
-        .toast { background: white; color: black; padding: 16px 24px; border-radius: 18px; font-weight: 800; box-shadow: 0 10px 35px rgba(0,0,0,0.3); pointer-events: auto; animation: slideIn 0.4s ease; border-right: 6px solid var(--blue); max-width: 300px; }
+        /* NOTIFICATIONS (Bottom Right) */
+        #toast-hub { position: fixed; bottom: 30px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; pointer-events: none; }
+        .toast { background: white; color: black; padding: 15px 25px; border-radius: 50px; font-weight: 800; box-shadow: 0 10px 30px rgba(0,0,0,0.3); pointer-events: auto; animation: slideIn 0.4s ease; border-right: 6px solid var(--blue); }
         @keyframes slideIn { from { transform: translateX(110%); } to { transform: translateX(0); } }
 
-        /* Calling Interface */
-        #call-ui { position: fixed; inset: 0; background: var(--blue); z-index: 19000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
-        #jitsi-container { position: fixed; inset: 0; z-index: 19500; display: none; background: black; }
+        /* DIRECT CALL OVERLAY */
+        #call-ui { position: fixed; inset: 0; background: var(--blue); z-index: 9000; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .v-nick { font-size: 55px; margin: 30px 0; font-weight: 900; }
 
-        /* Map Markers */
-        .avatar-pin { width: 55px !important; height: 55px !important; background: var(--snap); border: 4px solid white; border-radius: 50% !important; display: flex; align-items: center; justify-content: center; font-weight: 900; box-shadow: 0 6px 15px rgba(0,0,0,0.3); font-size: 22px; color: black; }
+        /* Markers */
+        .avatar-pin { width: 50px !important; height: 50px !important; background: var(--snap); border: 4px solid white; border-radius: 50% !important; display: flex; align-items: center; justify-content: center; font-weight: 900; box-shadow: 0 6px 15px rgba(0,0,0,0.3); font-size: 20px; color: black; }
+        
+        @media (max-width: 450px) { #sidebar { width: 100%; } }
         .hidden { display: none !important; }
     </style>
 </head>
@@ -56,65 +57,61 @@
 
 <div id="auth-gate">
     <div class="auth-card">
-        <h1 style="font-size: 70px">👻</h1>
-        <input id="au-ph" type="tel" placeholder="Phone Number" inputmode="tel">
+        <h1 style="font-size: 70px;">👻</h1>
+        <input id="au-ph" type="tel" placeholder="Phone Number">
         <input id="au-ni" type="text" placeholder="Nickname">
         <input id="au-ps" type="password" placeholder="Password">
-        <button class="btn-black" onclick="handleAuth()">LOGIN / SIGNUP</button>
+        <button class="btn-black" onclick="handleAuth()">ENTER ZENITH</button>
     </div>
 </div>
 
-<div class="hud-top hidden" id="ui-hud">
+<div class="hud hidden" id="main-hud">
     <div class="search-bar">
-        <input id="f-inp" placeholder="Follow Phone #" style="border:none;flex:1;outline:none;background:transparent;font-size:16px">
-        <button onclick="addFriend()" style="background:none; border:none; color:var(--blue); font-weight:900; font-size:14px; cursor:pointer">SYNC</button>
+        <input id="f-inp" placeholder="Follow Phone #">
+        <button onclick="addFriend()" style="background:none; border:none; color:var(--blue); font-weight:900; cursor:pointer">SYNC</button>
     </div>
 </div>
 
-<div id="chat-sidebar">
-    <div class="chat-head">
+<div id="sidebar">
+    <div class="side-head">
         <h2 id="s-nick">Friend</h2>
-        <button onclick="closeChat()" style="background:none; border:none; font-size:32px; padding:10px">✕</button>
+        <button onclick="closeSide()" style="background:none; border:none; font-size:32px; cursor:pointer">✕</button>
     </div>
-    <div class="chat-tools">
-        <button onclick="startCall()" class="tool-btn" style="background:var(--blue)">VOICE CALL</button>
+    <div class="side-tools">
+        <button onclick="startWebRTCCall()" class="tool-btn" style="background:var(--blue)">CALL</button>
         <button onclick="sendAlert()" class="tool-btn" style="background:var(--red)">ALERT</button>
     </div>
     <div id="msg-feed"></div>
-    <div id="reply-indicator" class="hidden" style="background:#f9f9f9; padding:12px; font-size:12px; border-top:1px solid #eee">
-        Replying... <button onclick="cancelReply()" style="color:red; border:none; background:none; font-weight:bold; margin-left:10px">Cancel</button>
+    <div id="reply-indicator" class="hidden" style="background:#f9f9f9; padding:10px; font-size:12px">Replying... <button onclick="cancelReply()" style="color:red; border:none; background:none">Cancel</button></div>
+    <div style="padding:15px; display:flex; gap:10px; border-top:1px solid #eee; padding-bottom: 40px">
+        <input id="m-inp" onkeydown="if(event.key==='Enter') sendMsg()" placeholder="Send a chat..." style="flex:1; background:#f2f2f3; border-radius:15px; padding:15px; border:none; outline:none">
+        <button onclick="sendMsg()" style="background:var(--snap); border:none; padding:0 20px; border-radius:15px; font-weight:900">SEND</button>
     </div>
-    <div style="padding:15px; display:flex; gap:10px; padding-bottom: 45px">
-        <input id="m-inp" onkeydown="if(event.key==='Enter') sendMsg()" placeholder="Send a chat..." style="flex:1; background:#f1f1f2; border-radius:20px; padding:16px; border:none; outline:none; font-size:16px">
-        <button onclick="sendMsg()" style="background:var(--snap); border:none; padding:0 25px; border-radius:20px; font-weight:900; color:#000">SEND</button>
-    </div>
-</div>
-
-<!-- Free VOIP Provider Integration (Jitsi) -->
-<div id="jitsi-container">
-    <iframe id="v-iframe" allow="microphone; camera" style="width:100%; height:100%; border:none;"></iframe>
-    <button onclick="endCall()" style="position:fixed; bottom:40px; left:50%; transform:translateX(-50%); background:red; color:white; padding:20px 40px; border-radius:50px; border:none; font-weight:bold; z-index:20000">END CALL</button>
 </div>
 
 <div id="call-ui">
-    <h2 id="c-status">INCOMING CALL</h2>
-    <h1 id="v-nick" style="font-size:55px; margin: 30px 0; font-weight:900">User</h1>
+    <h2>ZENITH AUDIO</h2>
+    <h1 id="v-nick" class="v-nick">...</h1>
     <div style="display:flex; gap:25px">
-        <button onclick="location.reload()" style="background:var(--red); color:white; padding:20px 50px; border-radius:50px; border:none; font-weight:900; font-size:18px">DECLINE</button>
-        <button id="v-acc" onclick="acceptCall()" style="background:white; color:var(--blue); padding:20px 50px; border-radius:50px; border:none; font-weight:900; font-size:18px">ACCEPT</button>
+        <button onclick="location.reload()" style="background:var(--red); color:white; padding:20px 45px; border-radius:50px; border:none; font-weight:900">HANGUP</button>
+        <button id="v-acc" onclick="acceptWebRTCCall()" style="background:white; color:var(--blue); padding:20px 45px; border-radius:50px; border:none; font-weight:900">ACCEPT</button>
     </div>
+    <div id="v-trans" style="margin-top:30px; font-weight:bold; opacity:0.7">...</div>
 </div>
 
 <div id="toast-hub"></div>
 <div id="map"></div>
+<audio id="rAudio" autoplay playsinline></audio>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    let ws, map, myPh, myNi, markers = {}, curF, history = [], replyId = null;
-    const ring = new Audio('https://assets.mixkit.co/active_storage/sfx/1350/1350-preview.mp3'); ring.loop = true;
+    let ws, map, myPh, myNi, markers = {}, curF, history = [], replyId = null, pc;
+    const alertSnd = new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3');
+    const ringSnd = new Audio('https://assets.mixkit.co/active_storage/sfx/1350/1350-preview.mp3'); ringSnd.loop = true;
 
+    // PERSISTENCE ENGINE: Check for session on load
     window.onload = () => {
-        const cache = JSON.parse(localStorage.getItem('snap_pro_auth'));
+        const cache = JSON.parse(localStorage.getItem('zenith_session'));
         if (cache) {
             document.getElementById('au-ph').value = cache.p;
             document.getElementById('au-ni').value = cache.n;
@@ -127,16 +124,16 @@
         const p = document.getElementById('au-ph').value, n = document.getElementById('au-ni').value, s = document.getElementById('au-ps').value;
         if (!p || !n || !s) return;
         myPh = p; myNi = n;
-        localStorage.setItem('snap_pro_auth', JSON.stringify({p, n, s}));
+        localStorage.setItem('zenith_session', JSON.stringify({p, n, s}));
         const proto = location.protocol === 'https:' ? 'wss' : 'ws';
         ws = new WebSocket(`${proto}://${location.host}/ws`);
         ws.onopen = () => {
-            ws.send(JSON.stringify({type:'auth', phone:p, nick:n, text:s}));
-            JSON.parse(localStorage.getItem('snap_pro_friends') || "[]").forEach(f => ws.send(JSON.stringify({type:'add_friend', target:f})));
+            ws.send(JSON.stringify({type:'auth', phone:p, nick:n, pass:s}));
+            JSON.parse(localStorage.getItem('zenith_friends') || "[]").forEach(f => ws.send(JSON.stringify({type:'add_friend', target:f})));
         };
         ws.onmessage = (e) => {
             const d = JSON.parse(e.data);
-            handleSignal(d);
+            handleData(d);
         };
     }
 
@@ -144,56 +141,102 @@
         if (map) return;
         map = L.map('map', { zoomControl: false, tap: false, attributionControl: false }).setView([0,0], 2);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        setInterval(() => map.invalidateSize(), 1500); // 100% Guaranteed visible
+        setInterval(() => map.invalidateSize(), 1500); // 100% Visibility Guaranteed
     }
 
-    function handleSignal(d) {
+    function handleData(d) {
         switch(d.type) {
             case 'auth_ok':
                 document.getElementById('auth-gate').style.display = 'none';
-                document.getElementById('ui-hud').classList.remove('hidden');
+                document.getElementById('main-hud').classList.remove('hidden');
                 initMap(); track(); break;
-            case 'loc': renderMarker(d); break;
+            case 'loc': updatePin(d); break;
             case 'chat':
                 history.push(d);
                 const room = d.from === myPh ? d.target : d.from;
                 if (curF === room) renderChat();
-                if (d.from !== myPh && !document.getElementById('chat-sidebar').classList.contains('open')) {
+                if (d.from !== myPh && !document.getElementById('sidebar').classList.contains('open')) {
                     toast(d.fromNick, d.text, d.from);
                 }
                 break;
-            case 'react':
-                const msg = history.find(x => x.msgId === d.msgId);
-                if(msg) { msg.react = "👍"; if(curF === d.from) renderChat(); }
-                break;
             case 'ring_alert': 
-                new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3').play();
+                alertSnd.play();
                 toast("ALERT", `${d.fromNick} is ringing you!`, ""); break;
-            case 'call_invite':
-                window.caller = d.from; window.room = d.roomId;
-                document.getElementById('call-ui').style.display = 'flex';
-                document.getElementById('v-nick').innerText = d.fromNick;
-                ring.play(); break;
-            case 'call_resp':
-                if (d.accept) launchVOIP(d.roomId); else { alert("Declined"); endCall(); }
-                break;
+            case 'webrtc_signal': handleWebRTC(d); break;
         }
     }
 
-    function renderMarker(d) {
-        if (d.phone === myPh) return;
-        const ll = [d.lat, d.lng];
-        if (!markers[d.phone]) {
-            const icon = L.divIcon({ className: '', iconSize: [55, 55], html: `<div class="avatar-pin">${d.nick[0]}</div>` });
-            markers[d.phone] = L.marker(ll, {icon}).addTo(map).on('click', () => openChat(d.phone, d.nick));
-        } else markers[d.phone].setLatLng(ll);
+    // --- PURE WEBRTC AUDIO ENGINE ---
+    async function startWebRTCCall() {
+        document.getElementById('call-ui').style.display = 'flex';
+        document.getElementById('v-nick').innerText = document.getElementById('s-nick').innerText;
+        document.getElementById('v-acc').classList.add('hidden');
+        await setupPC(curF);
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        ws.send(JSON.stringify({type:'webrtc_signal', target: curF, sdp: offer}));
     }
 
-    function openChat(phone, nick) {
-        curF = phone; document.getElementById('s-nick').innerText = nick;
-        document.getElementById('chat-sidebar').classList.add('open'); renderChat();
+    async function handleWebRTC(d) {
+        if (!pc) {
+            document.getElementById('call-ui').style.display = 'flex';
+            document.getElementById('v-nick').innerText = d.fromNick;
+            ringSnd.play();
+            window.callerId = d.from;
+        }
+        if (d.sdp) {
+            await pc.setRemoteDescription(new RTCSessionDescription(d.sdp));
+            if (d.sdp.type === 'offer') {
+                // Wait for 'Accept' click if offer
+            }
+        } else if (d.candidate) {
+            await pc.addIceCandidate(new RTCIceCandidate(d.candidate));
+        }
     }
-    function closeChat() { document.getElementById('chat-sidebar').classList.remove('open'); curF = null; }
+
+    async function acceptWebRTCCall() {
+        ringSnd.pause();
+        document.getElementById('v-acc').classList.add('hidden');
+        await setupPC(window.callerId);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        ws.send(JSON.stringify({type:'webrtc_signal', target: window.callerId, sdp: answer}));
+        startSTT();
+    }
+
+    async function setupPC(target) {
+        pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(t => pc.addTrack(t, stream));
+        pc.onicecandidate = e => e.candidate && ws.send(JSON.stringify({type:'webrtc_signal', target, candidate: e.candidate}));
+        pc.ontrack = e => document.getElementById('rAudio').srcObject = e.streams[0];
+    }
+
+    function startSTT() {
+        const STT = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!STT) return;
+        const rec = new STT(); rec.continuous = true; rec.interimResults = true;
+        rec.onresult = ev => {
+            const txt = ev.results[ev.results.length-1][0].transcript;
+            document.getElementById('v-trans').innerText = txt;
+        };
+        rec.start();
+    }
+
+    // --- CHAT & UI ---
+    function updatePin(d) {
+        if (d.p === myPh) return;
+        if (!markers[d.p]) {
+            const icon = L.divIcon({ className: '', iconSize: [50, 50], html: `<div class="avatar-pin">${d.n[0]}</div>` });
+            markers[d.p] = L.marker([d.lat, d.lng], {icon}).addTo(map).on('click', () => openSide(d.p, d.n));
+        } else markers[d.p].setLatLng([d.lat, d.lng]);
+    }
+
+    function openSide(p, n) {
+        curF = p; document.getElementById('s-nick').innerText = n;
+        document.getElementById('sidebar').classList.add('open'); renderChat();
+    }
+    function closeSide() { document.getElementById('sidebar').classList.remove('open'); curF = null; }
 
     function renderChat() {
         const box = document.getElementById('msg-feed'); box.innerHTML = "";
@@ -206,9 +249,7 @@
                 if (r) h += `<div class="reply-meta">${r.text.substring(0,30)}...</div>`;
             }
             div.innerHTML = h + m.text;
-            if (m.react) div.innerHTML += `<div class="reaction">${m.react}</div>`;
             div.onclick = () => { replyId = m.msgId; document.getElementById('reply-indicator').classList.remove('hidden'); };
-            div.oncontextmenu = (e) => { e.preventDefault(); ws.send(JSON.stringify({type:'react', target:curF, msgId: m.msgId})); };
             box.appendChild(div);
         });
         box.scrollTop = box.scrollHeight;
@@ -221,30 +262,6 @@
         i.value = ""; cancelReply();
     }
 
-    // VOIP Engine - Using Free Jitsi API (Zero Server Load)
-    function startCall() {
-        const room = "SnapPro-" + Math.random().toString(36).substring(7);
-        ws.send(JSON.stringify({type:'call_invite', target: curF, roomId: room}));
-        document.getElementById('call-ui').style.display = 'flex';
-        document.getElementById('v-acc').classList.add('hidden');
-        document.getElementById('c-status').innerText = "DIALING...";
-    }
-
-    function acceptCall() {
-        ring.pause();
-        ws.send(JSON.stringify({type:'call_resp', target: window.caller, accept: true, roomId: window.room}));
-        launchVOIP(window.room);
-    }
-
-    function launchVOIP(room) {
-        document.getElementById('call-ui').style.display = 'none';
-        document.getElementById('jitsi-container').style.display = 'block';
-        // Use standard Jitsi Meet (Free/High Performance)
-        document.getElementById('v-iframe').src = `https://meet.jit.si/${room}#config.prejoinPageEnabled=false&config.startWithVideoMuted=true`;
-    }
-
-    function endCall() { location.reload(); }
-
     function track() {
         navigator.geolocation.watchPosition(p => {
             if (ws.readyState === 1) ws.send(JSON.stringify({type:'location', lat:p.coords.latitude, lng:p.coords.longitude}));
@@ -256,15 +273,15 @@
         const d = document.createElement('div');
         d.className = 'toast';
         d.innerHTML = `<strong>${t}</strong><br>${m}`;
-        d.onclick = () => { if(p) openChat(p, t); d.remove(); };
-        hub.appendChild(d); setTimeout(() => d.remove(), 6000);
+        d.onclick = () => { if(p) openSide(p, t); d.remove(); };
+        hub.appendChild(d); setTimeout(() => d.remove(), 5000);
     }
 
     function addFriend() {
         const v = document.getElementById('f-inp').value;
         if (!v) return;
-        const l = JSON.parse(localStorage.getItem('snap_pro_friends') || "[]");
-        if (!l.includes(v)) { l.push(v); localStorage.setItem('snap_pro_friends', JSON.stringify(l)); }
+        const l = JSON.parse(localStorage.getItem('zenith_friends') || "[]");
+        if (!l.includes(v)) { l.push(v); localStorage.setItem('zenith_friends', JSON.stringify(l)); }
         ws.send(JSON.stringify({type:'add_friend', target: v}));
         document.getElementById('f-inp').value = "";
     }
