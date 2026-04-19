@@ -22,9 +22,10 @@ type User struct {
 }
 
 var (
-	users     = make(map[string]*User)
-	userMutex sync.RWMutex
-	upgrader  = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	users      = make(map[string]*User)
+	userMutex  sync.RWMutex
+	upgrader   = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	activeCall = "" // Stores Phone of current caller
 )
 
 func main() {
@@ -42,8 +43,23 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	var currentUser *User
 
 	for {
-		_, msg, err := conn.ReadMessage()
+		mt, msg, err := conn.ReadMessage()
 		if err != nil { break }
+
+		// Handle Binary Audio Chunks (VOIP)
+		if mt == websocket.BinaryMessage {
+			userMutex.RLock()
+			if currentUser != nil {
+				for p := range currentUser.Friends {
+					if f, ok := users[p]; ok && f.Conn != nil {
+						f.Conn.WriteMessage(websocket.BinaryMessage, msg)
+					}
+				}
+			}
+			userMutex.RUnlock()
+			continue
+		}
+
 		var d map[string]interface{}
 		json.Unmarshal(msg, &d)
 		t, _ := d["type"].(string)
@@ -60,34 +76,38 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			}
 			currentUser.Conn = conn
 			conn.WriteJSON(map[string]string{"type": "auth_ok"})
+
 		case "location":
 			if currentUser != nil {
 				currentUser.Lat, _ = d["lat"].(float64)
 				currentUser.Lng, _ = d["lng"].(float64)
-				for p := range currentUser.Friends {
-					if f, ok := users[p]; ok && f.Conn != nil {
-						f.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": currentUser.Phone, "n": currentUser.Nickname, "lat": currentUser.Lat, "lng": currentUser.Lng})
-					}
-				}
+				broadcast(currentUser, map[string]interface{}{"type": "loc", "p": currentUser.Phone, "n": currentUser.Nickname, "lat": currentUser.Lat, "lng": currentUser.Lng})
 			}
+
 		case "add_friend":
 			tgt := d["target"].(string)
 			if f, ok := users[tgt]; ok && currentUser != nil {
 				currentUser.Friends[tgt] = true
 				f.Friends[currentUser.Phone] = true
-				f.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": currentUser.Phone, "n": currentUser.Nickname, "lat": currentUser.Lat, "lng": currentUser.Lng})
 				currentUser.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": f.Phone, "n": f.Nickname, "lat": f.Lat, "lng": f.Lng})
-				runtime.GC()
+				f.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": currentUser.Phone, "n": currentUser.Nickname, "lat": currentUser.Lat, "lng": currentUser.Lng})
 			}
-		case "chat", "alert", "call_signal":
+
+		case "chat", "react", "call_invite", "call_resp", "transcription":
 			tgt := d["target"].(string)
-			if f, ok := users[tgt]; ok && currentUser != nil {
+			if f, ok := users[tgt]; ok {
 				d["from"] = currentUser.Phone
-				d["fromNick"] = currentUser.Nickname
 				f.Conn.WriteJSON(d)
-				if t == "chat" { currentUser.Conn.WriteJSON(d) }
+				if t == "chat" || t == "react" { currentUser.Conn.WriteJSON(d) }
 			}
 		}
 		userMutex.Unlock()
+		if t == "auth" { runtime.GC() }
+	}
+}
+
+func broadcast(u *User, data interface{}) {
+	for p := range u.Friends {
+		if f, ok := users[p]; ok && f.Conn != nil { f.Conn.WriteJSON(data) }
 	}
 }
