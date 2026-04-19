@@ -3,98 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Zenith Elite</title>
+    <title>Zenith Prime</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --snap: #FFFC00; --accent: #00F2FF; --danger: #FF3B30; --glass: rgba(15, 15, 15, 0.85); }
-        * { box-sizing: border-box; font-family: 'Inter', -apple-system, sans-serif; }
-        body, html { height: 100dvh; width: 100vw; margin: 0; background: #000; overflow: hidden; position: fixed; color: white; }
+        :root { --snap: #FFFC00; --accent: #FF3B30; --blue: #007AFF; --bg: #ffffff; }
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        
+        body, html { 
+            height: 100dvh; width: 100vw; margin: 0; 
+            overflow: hidden; position: fixed; background: #fff; 
+        }
 
-        /* THE MAP - FULL SCREEN NO FILTERS */
-        #map { position: absolute; inset: 0; z-index: 1; background: #111; }
+        /* MAP FIX - Standard high-visibility layout */
+        #map { position: absolute; inset: 0; z-index: 1; background: #f0f0f0; }
 
-        /* CRAZY UI: AUTH GATE */
+        /* AUTH UI */
         #auth-gate { 
-            position: fixed; inset: 0; z-index: 10000; 
-            background: linear-gradient(135deg, #FFFC00 0%, #FFD700 100%);
-            display: flex; align-items: center; justify-content: center; transition: 0.6s cubic-bezier(0.85, 0, 0.15, 1);
+            position: fixed; inset: 0; z-index: 10000; background: var(--snap); 
+            display: flex; align-items: center; justify-content: center;
         }
-        .auth-card { width: 85%; max-width: 380px; text-align: center; color: black; }
-        .auth-card h1 { font-size: 80px; margin: 0 0 20px 0; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.2)); }
+        .auth-card { width: 85%; max-width: 380px; text-align: center; }
+        .auth-card h1 { font-size: 70px; margin-bottom: 20px; }
         input { 
-            width: 100%; padding: 20px; margin: 10px 0; border-radius: 20px; border: 2px solid rgba(0,0,0,0.05);
-            font-size: 16px; font-weight: 600; outline: none; box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            width: 100%; padding: 20px; margin: 8px 0; border-radius: 15px; 
+            border: none; font-size: 16px; background: white; outline: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
-        .btn-main { 
+        .btn-black { 
             width: 100%; padding: 20px; background: black; color: white; 
-            border-radius: 50px; border: none; font-weight: 900; font-size: 18px; 
-            cursor: pointer; margin-top: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border-radius: 50px; border: none; font-weight: 900; cursor: pointer; 
+            margin-top: 10px; font-size: 18px; 
         }
 
-        /* HUD - SEARCH BAR */
-        .hud { position: absolute; top: 20px; width: 100%; z-index: 1000; display: flex; justify-content: center; pointer-events: none; }
-        .search-container { 
-            background: var(--glass); backdrop-filter: blur(20px); padding: 5px 20px; 
-            border-radius: 50px; display: flex; align-items: center; width: 90%; max-width: 500px;
-            box-shadow: 0 15px 45px rgba(0,0,0,0.5); pointer-events: auto; border: 1px solid rgba(255,255,255,0.1);
+        /* NAVIGATION */
+        .hud { 
+            position: absolute; top: env(safe-area-inset-top, 20px); 
+            width: 100%; z-index: 1000; display: flex; justify-content: center; pointer-events: none; 
         }
-        .search-container input { background: transparent; color: white; border: none; flex: 1; padding: 12px; font-weight: 500; box-shadow: none; }
+        .search-bar { 
+            background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); 
+            padding: 5px 20px; border-radius: 50px; display: flex; align-items: center; 
+            width: 90%; max-width: 450px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+            pointer-events: auto; border: 1px solid #ddd;
+        }
+        .search-bar input { background: transparent; border: none; flex: 1; padding: 12px; font-size: 14px; }
 
-        /* SIDEBAR CHAT - CRAZY DESIGN */
+        /* SIDEBAR CHAT */
         #sidebar { 
-            position: fixed; right: -100%; top: 0; bottom: 0; width: 400px; 
-            background: #0A0A0A; z-index: 5000; transition: 0.4s cubic-bezier(0.19, 1, 0.22, 1); 
-            display: flex; flex-direction: column; box-shadow: -20px 0 60px rgba(0,0,0,0.8);
+            position: fixed; right: -100%; top: 0; bottom: 0; width: 380px; 
+            background: white; z-index: 5000; transition: 0.4s cubic-bezier(0.19, 1, 0.22, 1); 
+            display: flex; flex-direction: column; box-shadow: -10px 0 40px rgba(0,0,0,0.1);
         }
         #sidebar.open { right: 0; }
-        .side-head { padding: 30px; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to bottom, #151515, #0A0A0A); }
-        .side-tools { display: flex; gap: 10px; padding: 0 25px 20px 25px; }
-        .tool-btn { flex: 1; padding: 15px; border-radius: 15px; border: none; font-weight: 900; color: white; cursor: pointer; font-size: 12px; transition: 0.2s; }
-        .tool-btn:active { transform: scale(0.95); }
+        .side-head { padding: 25px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .side-tools { display: flex; gap: 10px; padding: 15px 25px; background: #fafafa; }
+        .s-btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: 800; color: white; cursor: pointer; font-size: 12px; }
 
-        #msg-feed { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth; }
-        .bubble { 
-            padding: 14px 20px; border-radius: 24px; font-size: 15px; max-width: 85%; 
-            line-height: 1.5; background: #222; position: relative; animation: msgPop 0.3s ease;
-        }
-        .bubble.me { align-self: flex-end; background: var(--accent); color: black; font-weight: 500; border-bottom-right-radius: 4px; }
-        .bubble.them { align-self: flex-start; background: #333; color: white; border-bottom-left-radius: 4px; }
-        .reply-meta { font-size: 11px; opacity: 0.5; margin-bottom: 5px; font-style: italic; }
+        #msg-feed { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; background: #fff; }
+        .bubble { padding: 12px 18px; border-radius: 20px; font-size: 15px; max-width: 80%; line-height: 1.4; position: relative; background: #f0f0f0; color: #000; }
+        .bubble.me { align-self: flex-end; background: var(--blue); color: white; border-bottom-right-radius: 4px; }
+        .reply-meta { font-size: 11px; opacity: 0.5; margin-bottom: 4px; font-style: italic; }
 
-        /* DAILY.CO CALL MODAL */
-        #call-modal { 
-            position: fixed; inset: 0; z-index: 9000; background: black; 
-            display: none; flex-direction: column; transition: 0.3s;
+        /* CALL MODAL */
+        #call-overlay { 
+            position: fixed; inset: 0; z-index: 9000; background: #000; 
+            display: none; flex-direction: column;
         }
-        #call-frame { width: 100%; height: 100%; border: none; }
-        .call-controls { position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: center; z-index: 9001; }
+        #jitsi-frame { width: 100%; height: 100%; border: none; }
+        .hangup-bar { 
+            position: absolute; bottom: 40px; width: 100%; 
+            display: flex; justify-content: center; pointer-events: none; 
+        }
+        .btn-hangup { 
+            background: var(--accent); color: white; padding: 15px 40px; 
+            border-radius: 50px; border: none; font-weight: 900; pointer-events: auto; cursor: pointer; 
+        }
+
+        /* NOTIFICATIONS */
+        #toast-hub { 
+            position: fixed; bottom: 30px; right: 20px; z-index: 9999; 
+            display: flex; flex-direction: column; gap: 10px; pointer-events: none; 
+        }
+        .toast { 
+            background: white; color: black; padding: 15px 25px; border-radius: 20px; 
+            font-weight: 800; box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+            pointer-events: auto; animation: slideIn 0.3s ease; border-right: 6px solid var(--blue);
+        }
+        @keyframes slideIn { from { transform: translateX(110%); } to { transform: translateX(0); } }
 
         /* MARKERS */
-        .custom-marker { display: flex; flex-direction: column; align-items: center; }
-        .marker-dot { width: 12px; height: 12px; background: var(--accent); border: 2px solid white; border-radius: 50%; box-shadow: 0 0 15px var(--accent); }
-        .marker-label { 
-            background: white; color: black; padding: 4px 12px; border-radius: 50px; 
-            font-size: 12px; font-weight: 900; margin-bottom: 5px; box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            white-space: nowrap;
-        }
+        .marker-box { display: flex; flex-direction: column; align-items: center; }
+        .marker-dot { width: 10px; height: 10px; background: var(--accent); border: 2px solid white; border-radius: 50%; }
+        .marker-name { background: white; padding: 3px 10px; border-radius: 10px; font-weight: 900; font-size: 11px; margin-bottom: 3px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); color: #000; }
 
-        /* ALERT UI */
-        .alert-flash { animation: flashScreen 0.2s infinite; }
-        @keyframes flashScreen { 0% { background: rgba(255,0,0,0); } 50% { background: rgba(255,0,0,0.3); } 100% { background: rgba(255,0,0,0); } }
-
-        #toast-hub { position: fixed; bottom: 30px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
-        .toast { 
-            background: white; color: black; padding: 18px 28px; border-radius: 20px; 
-            font-weight: 800; box-shadow: 0 10px 40px rgba(0,0,0,0.4); pointer-events: auto;
-            animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        @keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
-        
         @media (max-width: 450px) { #sidebar { width: 100%; } }
         .hidden { display: none !important; }
     </style>
 </head>
-<body id="main-body">
+<body>
 
 <div id="auth-gate">
     <div class="auth-card">
@@ -102,40 +108,37 @@
         <input id="au-ph" type="tel" placeholder="Phone Number">
         <input id="au-ni" type="text" placeholder="Nickname">
         <input id="au-ps" type="password" placeholder="Password">
-        <button class="btn-main" onclick="handleAuth()">CONTINUE</button>
+        <button class="btn-black" onclick="handleAuth()">ENTER MAP</button>
     </div>
 </div>
 
 <div class="hud hidden" id="main-hud">
-    <div class="search-container">
-        <input id="f-inp" placeholder="Add phone #...">
-        <button onclick="addFriend()" style="background:none; border:none; color:var(--accent); font-weight:900; cursor:pointer">ADD</button>
+    <div class="search-bar">
+        <input id="f-inp" placeholder="Phone Number to Track">
+        <button onclick="addFriend()" style="background:none; border:none; color:var(--blue); font-weight:900; cursor:pointer">SYNC</button>
     </div>
 </div>
 
 <div id="sidebar">
     <div class="side-head">
-        <h2 id="s-nick">Nickname</h2>
-        <button onclick="closeSide()" style="background:none; border:none; color:white; font-size:35px; cursor:pointer">✕</button>
+        <h2 id="s-nick">Friend</h2>
+        <button onclick="closeSide()" style="background:none; border:none; font-size:30px; cursor:pointer">✕</button>
     </div>
     <div class="side-tools">
-        <button onclick="startCall()" class="tool-btn" style="background:var(--accent); color:black">VOICE CALL</button>
-        <button onclick="sendAlert()" class="tool-btn" style="background:var(--danger)">ALERT</button>
+        <button onclick="startCall()" class="s-btn" style="background:var(--blue)">START CALL</button>
+        <button onclick="sendAlert()" class="s-btn" style="background:var(--accent)">SEND ALERT</button>
     </div>
     <div id="msg-feed"></div>
-    <div id="reply-box" class="hidden" style="padding:15px; background:#111; font-size:12px; border-top:1px solid #222">
-        Replying... <button onclick="cancelReply()" style="color:red; background:none; border:none; font-weight:bold">Cancel</button>
-    </div>
-    <div style="padding:20px; display:flex; gap:12px; border-top:1px solid #222; padding-bottom: 50px">
-        <input id="m-inp" onkeydown="if(event.key==='Enter') sendMsg()" placeholder="Chat..." style="flex:1; background:#1a1a1a; color:white; border-radius:18px; padding:18px">
-        <button onclick="sendMsg()" style="background:var(--snap); border:none; padding:0 25px; border-radius:18px; font-weight:900">SEND</button>
+    <div style="padding:20px; display:flex; gap:10px; border-top:1px solid #eee; padding-bottom: 50px">
+        <input id="m-inp" onkeydown="if(event.key==='Enter') sendChat()" placeholder="Chat message..." style="flex:1; background:#f5f5f5; border-radius:15px; padding:15px; border:none; outline:none">
+        <button onclick="sendChat()" style="background:var(--snap); border:none; padding:0 20px; border-radius:15px; font-weight:900">SEND</button>
     </div>
 </div>
 
-<div id="call-modal">
-    <iframe id="call-frame" allow="microphone; camera; autoplay"></iframe>
-    <div class="call-controls">
-        <button class="btn-main" style="background:red; width:auto; padding:15px 40px" onclick="endCall()">HANG UP</button>
+<div id="call-overlay">
+    <iframe id="jitsi-frame" allow="microphone; camera; autoplay; display-capture"></iframe>
+    <div class="hangup-bar">
+        <button class="btn-hangup" onclick="endCall()">HANG UP</button>
     </div>
 </div>
 
@@ -144,12 +147,12 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    let ws, map, myPh, myNi, markers = {}, curF, history = {}, replyId = null;
+    let ws, map, myPh, myNi, markers = {}, curF, chatHistory = {};
     const alertSnd = new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3');
 
-    // Persistence Check
+    // Restore Cache on Start
     window.onload = () => {
-        const cache = JSON.parse(localStorage.getItem('zenith_v12_auth'));
+        const cache = JSON.parse(localStorage.getItem('zenith_pro_auth'));
         if (cache) {
             document.getElementById('au-ph').value = cache.p;
             document.getElementById('au-ni').value = cache.n;
@@ -162,60 +165,66 @@
         const p = document.getElementById('au-ph').value, n = document.getElementById('au-ni').value, s = document.getElementById('au-ps').value;
         if (!p || !n || !s) return;
         myPh = p; myNi = n;
-        localStorage.setItem('zenith_v12_auth', JSON.stringify({p, n, s}));
+        localStorage.setItem('zenith_pro_auth', JSON.stringify({p, n, s}));
         
         const proto = location.protocol === 'https:' ? 'wss' : 'ws';
         ws = new WebSocket(`${proto}://${location.host}/ws`);
         ws.onopen = () => {
             ws.send(JSON.stringify({type:'auth', phone:p, nick:n, pass:s}));
-            JSON.parse(localStorage.getItem('zenith_friends') || "[]").forEach(f => ws.send(JSON.stringify({type:'add_friend', target:f})));
+            JSON.parse(localStorage.getItem('zenith_friends_list') || "[]").forEach(f => ws.send(JSON.stringify({type:'add_friend', target:f})));
         };
-        ws.onmessage = (e) => handleData(JSON.parse(e.data));
+        ws.onmessage = (e) => handleSignal(JSON.parse(e.data));
     }
 
     function initMap() {
         if (map) return;
         map = L.map('map', { zoomControl: false, tap: false, attributionControl: false }).setView([0,0], 2);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        setInterval(() => map.invalidateSize(), 1500);
+        setInterval(() => map.invalidateSize(), 1000);
     }
 
-    function handleData(d) {
+    function handleSignal(d) {
         switch(d.type) {
             case 'auth_ok':
-                document.getElementById('auth-gate').style.transform = 'translateY(-100%)';
+                document.getElementById('auth-gate').style.display = 'none';
                 document.getElementById('main-hud').classList.remove('hidden');
                 initMap(); track(); break;
             case 'loc': updateMarker(d); break;
             case 'chat':
                 const room = d.from === myPh ? d.target : d.from;
-                if (!history[room]) history[room] = [];
-                history[room].push(d);
+                if (!chatHistory[room]) chatHistory[room] = [];
+                chatHistory[room].push(d);
                 if (curF === room) renderChat();
                 if (d.from !== myPh && !document.getElementById('sidebar').classList.contains('open')) {
                     toast(d.fromNick, d.text, d.from, d.fromNick);
                 }
                 break;
-            case 'alert': triggerAlertFlash(); break;
-            case 'call_invite': 
-                if(confirm(`Incoming Call from ${d.fromNick}?`)) {
+            case 'ring_alert': 
+                alertSnd.play(); 
+                toast("EMERGENCY", d.fromNick + " IS ALERTING YOU!", "");
+                break;
+            case 'call_invite':
+                if (confirm(`Accept Call from ${d.fromNick}?`)) {
                     curF = d.from;
-                    launchCall(d.roomId);
+                    joinCall(d.roomId);
                 }
                 break;
+            case 'note': toast("System", d.text, ""); break;
         }
     }
 
     function updateMarker(d) {
-        if (d.p === myPh) return;
-        const ll = [d.lat, d.lng];
-        if (!markers[d.p]) {
+        if (d.phone === myPh) return;
+        const pos = [d.lat, d.lng];
+        if (!markers[d.phone]) {
             const icon = L.divIcon({
-                className: 'custom-marker', iconSize: [100, 40],
-                html: `<div class="marker-label">${d.n}</div><div class="marker-dot"></div>`
+                className: 'marker-box', iconSize: [100, 30],
+                html: `<div class="marker-name">${d.nick}</div><div class="marker-dot"></div>`
             });
-            markers[d.p] = L.marker(ll, {icon}).addTo(map).on('click', () => openSide(d.p, d.n));
-        } else markers[d.p].setLatLng(ll);
+            markers[d.phone] = L.marker(pos, {icon}).addTo(map).on('click', () => openSide(d.phone, d.nick));
+        } else {
+            markers[d.phone].setLatLng(pos);
+        }
     }
 
     function openSide(ph, ni) {
@@ -226,49 +235,52 @@
 
     function renderChat() {
         const box = document.getElementById('msg-feed'); box.innerHTML = "";
-        (history[curF] || []).forEach(m => {
+        (chatHistory[curF] || []).forEach(m => {
             const div = document.createElement('div');
             div.className = `bubble ${m.from === myPh ? 'me' : 'them'}`;
-            let h = "";
-            if (m.replyTo) {
-                const r = (history[curF] || []).find(x => x.msgId === m.replyTo);
-                if (r) h += `<div class="reply-meta">Replying to: ${r.text.substring(0,20)}...</div>`;
-            }
-            div.innerHTML = h + m.text;
-            div.onclick = () => { replyId = m.msgId; document.getElementById('reply-box').classList.remove('hidden'); };
+            div.innerText = m.text;
             box.appendChild(div);
         });
         box.scrollTop = box.scrollHeight;
     }
 
-    function sendMsg() {
+    function sendChat() {
         const i = document.getElementById('m-inp'); if(!i.value) return;
-        const p = {type:'chat', target:curF, text:i.value, msgId: Date.now().toString(), replyTo: replyId};
-        ws.send(JSON.stringify(p)); i.value = ""; cancelReply();
+        const p = {type:'chat', target:curF, text:i.value};
+        ws.send(JSON.stringify(p)); i.value = "";
     }
 
-    // CALLING LOGIC (Daily.co)
+    // --- CALLING (JITSI MEET) ---
     function startCall() {
-        const room = "https://trackerpro.daily.co/ZenithCall" + Math.random().toString(36).substring(7);
-        ws.send(JSON.stringify({type:'call_invite', target: curF, roomId: room}));
-        launchCall(room);
+        const roomName = "ZenithCall-" + Math.random().toString(36).substring(7);
+        ws.send(JSON.stringify({type:'call_invite', target: curF, roomId: roomName}));
+        joinCall(roomName);
     }
 
-    function launchCall(url) {
-        document.getElementById('call-modal').style.display = 'flex';
-        document.getElementById('call-frame').src = url;
+    function joinCall(room) {
+        document.getElementById('call-overlay').style.display = 'flex';
+        document.getElementById('jitsi-frame').src = `https://meet.jit.si/${room}#config.prejoinPageEnabled=false&interfaceConfig.TOOLBAR_BUTTONS=["microphone","camera","hangup"]`;
     }
 
     function endCall() {
-        document.getElementById('call-modal').style.display = 'none';
-        document.getElementById('call-frame').src = "";
+        document.getElementById('call-overlay').style.display = 'none';
+        document.getElementById('jitsi-frame').src = "";
     }
 
-    function triggerAlertFlash() {
-        alertSnd.play();
-        document.getElementById('main-body').classList.add('alert-flash');
-        setTimeout(() => document.getElementById('main-body').classList.remove('alert-flash'), 2000);
-        toast("EMERGENCY", "User is Alerting You!", "");
+    function toast(t, m, ph, ni) {
+        const d = document.createElement('div');
+        d.className = 'toast'; d.innerHTML = `<strong>${t}</strong><br>${m}`;
+        d.onclick = () => { if(ph) openSide(ph, ni); d.remove(); };
+        document.getElementById('toast-hub').appendChild(d);
+        setTimeout(() => d.remove(), 6000);
+    }
+
+    function addFriend() {
+        const v = document.getElementById('f-inp').value; if(!v) return;
+        const l = JSON.parse(localStorage.getItem('zenith_friends_list') || "[]");
+        if(!l.includes(v)) { l.push(v); localStorage.setItem('zenith_friends_list', JSON.stringify(l)); }
+        ws.send(JSON.stringify({type:'add_friend', target: v}));
+        document.getElementById('f-inp').value = "";
     }
 
     function track() {
@@ -277,23 +289,6 @@
         }, null, {enableHighAccuracy: true});
     }
 
-    function toast(t, m, ph, ni) {
-        const d = document.createElement('div');
-        d.className = 'toast'; d.innerHTML = `<strong>${t}</strong><br>${m}`;
-        d.onclick = () => { if(ph) openSide(ph, ni); d.remove(); };
-        document.getElementById('toast-hub').appendChild(d);
-        setTimeout(() => d.remove(), 5000);
-    }
-
-    function addFriend() {
-        const v = document.getElementById('f-inp').value; if(!v) return;
-        const l = JSON.parse(localStorage.getItem('zenith_friends') || "[]");
-        if(!l.includes(v)) { l.push(v); localStorage.setItem('zenith_friends', JSON.stringify(l)); }
-        ws.send(JSON.stringify({type:'add_friend', target: v}));
-        document.getElementById('f-inp').value = "";
-    }
-
-    function cancelReply() { replyId = null; document.getElementById('reply-box').classList.add('hidden'); }
     function sendAlert() { ws.send(JSON.stringify({type:'alert', target: curF})); }
 </script>
 </body>
