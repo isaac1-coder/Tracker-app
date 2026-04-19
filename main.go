@@ -30,11 +30,8 @@ var (
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" { port = "10000" }
-
 	http.HandleFunc("/ws", handleWS)
 	http.Handle("/", http.FileServer(http.Dir("./")))
-
-	log.Printf("Mobile Tracker Online on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
@@ -42,13 +39,11 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil { return }
 	defer conn.Close()
-
 	var currentUser *User
 
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil { break }
-
 		var d map[string]interface{}
 		json.Unmarshal(msg, &d)
 		t, _ := d["type"].(string)
@@ -65,57 +60,34 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			}
 			currentUser.Conn = conn
 			conn.WriteJSON(map[string]string{"type": "auth_ok"})
-
 		case "location":
 			if currentUser != nil {
 				currentUser.Lat, _ = d["lat"].(float64)
 				currentUser.Lng, _ = d["lng"].(float64)
-				broadcastLoc(currentUser)
+				for p := range currentUser.Friends {
+					if f, ok := users[p]; ok && f.Conn != nil {
+						f.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": currentUser.Phone, "n": currentUser.Nickname, "lat": currentUser.Lat, "lng": currentUser.Lng})
+					}
+				}
 			}
-
 		case "add_friend":
 			tgt := d["target"].(string)
 			if f, ok := users[tgt]; ok && currentUser != nil {
 				currentUser.Friends[tgt] = true
 				f.Friends[currentUser.Phone] = true
-				syncPair(currentUser, f)
+				f.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": currentUser.Phone, "n": currentUser.Nickname, "lat": currentUser.Lat, "lng": currentUser.Lng})
+				currentUser.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": f.Phone, "n": f.Nickname, "lat": f.Lat, "lng": f.Lng})
+				runtime.GC()
 			}
-
-		case "chat":
-			tgt, txt := d["target"].(string), d["text"].(string)
-			if f, ok := users[tgt]; ok && currentUser != nil {
-				m := map[string]string{"type": "chat", "from": currentUser.Phone, "nick": currentUser.Nickname, "text": txt}
-				f.Conn.WriteJSON(m)
-				currentUser.Conn.WriteJSON(m)
-			}
-
-		case "alert":
-			if f, ok := users[d["target"].(string)]; ok && currentUser != nil {
-				f.Conn.WriteJSON(map[string]string{"type": "ring_alert", "from": currentUser.Nickname})
-			}
-
-		case "call_signal":
+		case "chat", "alert", "call_signal":
 			tgt := d["target"].(string)
 			if f, ok := users[tgt]; ok && currentUser != nil {
 				d["from"] = currentUser.Phone
 				d["fromNick"] = currentUser.Nickname
 				f.Conn.WriteJSON(d)
+				if t == "chat" { currentUser.Conn.WriteJSON(d) }
 			}
 		}
 		userMutex.Unlock()
 	}
-}
-
-func broadcastLoc(u *User) {
-	for p := range u.Friends {
-		if f, ok := users[p]; ok && f.Conn != nil {
-			f.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": u.Phone, "n": u.Nickname, "lat": u.Lat, "lng": u.Lng})
-		}
-	}
-}
-
-func syncPair(a, b *User) {
-	if a.Conn != nil { a.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": b.Phone, "n": b.Nickname, "lat": b.Lat, "lng": b.Lng}) }
-	if b.Conn != nil { b.Conn.WriteJSON(map[string]interface{}{"type": "loc", "p": a.Phone, "n": a.Nickname, "lat": a.Lat, "lng": a.Lng}) }
-	runtime.GC()
 }
