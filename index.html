@@ -1,82 +1,87 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tracker Pro</title>
+    <title>Tracker Ultra</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        :root { --bg: #0b0f1a; --card: #161b2c; --accent: #00d2ff; --text: #e2e8f0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica; }
         body { background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
         
-        /* Auth Screen */
+        /* Login Screen */
         #auth-screen { 
             position: fixed; inset: 0; z-index: 9999; background: var(--bg);
             display: flex; align-items: center; justify-content: center;
         }
         .auth-card { 
-            background: var(--card); padding: 2rem; border-radius: 1rem; width: 90%; max-width: 400px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center;
+            background: var(--card); padding: 30px; border-radius: 20px; width: 90%; max-width: 380px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.05);
         }
         input { 
-            width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #334155;
-            background: #0f172a; color: white; outline: none;
+            width: 100%; padding: 15px; margin: 12px 0; border-radius: 12px; border: 1px solid #2d3748;
+            background: #0b0f1a; color: white; font-size: 16px; outline: none;
         }
+        input:focus { border-color: var(--accent); }
         button { 
-            width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: bold;
-            background: var(--accent); color: #0f172a; cursor: pointer; transition: 0.2s;
+            width: 100%; padding: 15px; border-radius: 12px; border: none; font-weight: 800;
+            background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%); color: white; 
+            cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
         }
-        button:hover { opacity: 0.9; transform: translateY(-1px); }
 
-        /* Main UI */
+        /* Map UI */
         #map { height: 100vh; width: 100%; z-index: 1; }
         .overlay { 
-            position: absolute; top: 20px; left: 20px; z-index: 100; pointer-events: none;
-            display: flex; flex-direction: column; gap: 10px;
+            position: absolute; top: 15px; left: 15px; z-index: 100;
+            width: calc(100% - 30px); max-width: 300px;
         }
         .glass { 
-            background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px);
-            padding: 15px; border-radius: 12px; pointer-events: auto; border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(22, 27, 44, 0.85); backdrop-filter: blur(12px);
+            padding: 15px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
         }
 
         #notifications {
-            position: fixed; bottom: 20px; right: 20px; z-index: 2000;
-            display: flex; flex-direction: column; gap: 8px; max-width: 300px;
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 2000; width: 90%; max-width: 400px;
         }
         .note { 
-            background: var(--accent); color: #000; padding: 12px; border-radius: 8px;
-            font-size: 14px; animation: slideIn 0.3s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            background: #2d3748; color: white; padding: 14px; border-radius: 12px;
+            margin-top: 8px; font-size: 14px; border-left: 4px solid var(--accent);
+            animation: pop 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
         }
 
+        @keyframes pop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         .hidden { display: none !important; }
-        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
         
-        /* Map Marker Customization */
-        .user-label { background: var(--accent); color: black; padding: 2px 8px; border-radius: 4px; font-weight: bold; border: 1px solid white; }
+        /* Marker Styling */
+        .user-tag { 
+            background: var(--accent); color: #0b0f1a; padding: 3px 10px; 
+            border-radius: 20px; font-weight: bold; border: 2px solid white;
+            white-space: nowrap; font-size: 12px;
+        }
     </style>
 </head>
 <body>
 
 <div id="auth-screen">
     <div class="auth-card">
-        <h2 style="margin-bottom: 20px;">Tracker Login</h2>
+        <h1 style="font-size: 24px; margin-bottom: 5px;">Tracker Pro</h1>
+        <p style="font-size: 14px; color: #718096; margin-bottom: 20px;">Secure Location Network</p>
         <input id="phone" type="tel" placeholder="Phone Number" />
         <input id="pass" type="password" placeholder="Password" />
-        <button onclick="startApp()">Enter Application</button>
+        <button onclick="startApp()">Enter Secure Hub</button>
     </div>
 </div>
 
 <div class="overlay hidden" id="main-ui">
     <div class="glass">
-        <h4 style="margin-bottom:8px">Add Friend</h4>
-        <div style="display:flex; gap:5px">
-            <input id="targetPhone" placeholder="Phone #" style="margin:0; padding: 8px;">
-            <button onclick="addFriend()" style="width:auto; padding: 0 15px;">+</button>
+        <p style="font-size: 12px; font-weight: bold; color: var(--accent); margin-bottom: 10px;">ADD CONNECTION</p>
+        <div style="display:flex; gap:8px">
+            <input id="targetPhone" placeholder="Friend's #" style="margin:0; padding: 10px; font-size: 14px;">
+            <button onclick="addFriend()" style="width:50px; padding: 0;">+</button>
         </div>
-    </div>
-    <div id="friend-list" class="glass">
-        <p style="font-size: 12px; opacity: 0.7;">Active friends will appear on map.</p>
     </div>
 </div>
 
@@ -85,20 +90,17 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    let ws, map, myPhone;
-    let markers = {};
+    let ws, map, myPhone, markers = {};
 
     function startApp() {
         myPhone = document.getElementById('phone').value;
         const pass = document.getElementById('pass').value;
-        if(!myPhone || !pass) return alert("Fill all fields");
+        if(!myPhone || !pass) return alert("Missing credentials");
 
         const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
         ws = new WebSocket(`${protocol}://${location.host}/ws`);
 
-        ws.onopen = () => {
-            ws.send(JSON.stringify({type: 'auth', phone: myPhone, pass: pass}));
-        };
+        ws.onopen = () => ws.send(JSON.stringify({type: 'auth', phone: myPhone, pass: pass}));
 
         ws.onmessage = (e) => {
             const data = JSON.parse(e.data);
@@ -108,12 +110,12 @@
                 initMap();
                 startTracking();
             }
-            if(data.type === 'msg') showNote(`[${data.from}]: ${data.text}`);
+            if(data.type === 'msg') showNote(`${data.from}: ${data.text}`);
             if(data.type === 'loc_update') updateMarker(data);
             if(data.type === 'error') alert(data.msg);
         };
-
-        ws.onclose = () => { alert("Connection lost. Refresh."); };
+        
+        ws.onclose = () => { alert("Connection lost. Please refresh."); };
     }
 
     function initMap() {
@@ -123,24 +125,24 @@
 
     function startTracking() {
         navigator.geolocation.watchPosition(pos => {
-            const {latitude, longitude} = pos.coords;
-            ws.send(JSON.stringify({type: 'location', lat: latitude, lng: longitude}));
-        }, err => console.error(err), { enableHighAccuracy: true });
+            ws.send(JSON.stringify({type: 'location', lat: pos.coords.latitude, lng: pos.coords.longitude}));
+        }, null, { enableHighAccuracy: true });
     }
 
     function updateMarker(data) {
+        const pos = [data.lat, data.lng];
         if (!markers[data.phone]) {
-            const icon = L.divIcon({className: 'user-label', html: data.phone});
-            markers[data.phone] = L.marker([data.lat, data.lng], {icon: icon}).addTo(map)
+            const icon = L.divIcon({className: 'user-tag', html: data.phone});
+            markers[data.phone] = L.marker(pos, {icon: icon}).addTo(map)
                 .bindPopup(`
-                    <div style="color:black">
+                    <div style="color:#000; padding:5px;">
                         <b>${data.phone}</b><br><br>
-                        <button onclick="chat('${data.phone}')" style="background:#0f172a; color:white; padding:5px; width:100%">Chat</button>
-                        <button onclick="call('${data.phone}')" style="background:green; color:white; padding:5px; width:100%; margin-top:5px">Call (3m)</button>
+                        <button onclick="chat('${data.phone}')" style="background:#161b2c; color:white; padding:8px; width:100%; border-radius:5px">Chat</button>
+                        <button onclick="call('${data.phone}')" style="background:#38a169; color:white; padding:8px; width:100%; border-radius:5px; margin-top:5px">Voice Call</button>
                     </div>
                 `);
         } else {
-            markers[data.phone].setLatLng([data.lat, data.lng]);
+            markers[data.phone].setLatLng(pos);
         }
     }
 
@@ -149,21 +151,22 @@
         ws.send(JSON.stringify({type: 'add_friend', target: target}));
     }
 
-    function chat(target) {
-        const msg = prompt(`Message ${target}:`);
-        if(msg) ws.send(JSON.stringify({type: 'chat', target: target, text: msg}));
+    function chat(t) {
+        const msg = prompt(`Message to ${t}:`);
+        if(msg) ws.send(JSON.stringify({type: 'chat', target: t, text: msg}));
     }
 
-    function call(target) {
-        ws.send(JSON.stringify({type: 'call_request', target: target}));
+    function call(t) {
+        ws.send(JSON.stringify({type: 'call_request', target: t}));
     }
 
     function showNote(msg) {
+        const n = document.getElementById('notifications');
         const div = document.createElement('div');
         div.className = 'note';
         div.innerText = msg;
-        document.getElementById('notifications').appendChild(div);
-        setTimeout(() => div.remove(), 6000);
+        n.appendChild(div);
+        setTimeout(() => div.remove(), 5000);
     }
 </script>
 </body>
