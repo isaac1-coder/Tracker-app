@@ -3,177 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Zenith Prime</title>
+    <title>Apex Tracker</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --snap: #FFFC00; --accent: #FF3B30; --blue: #007AFF; --bg: #ffffff; }
-        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        
-        body, html { 
-            height: 100dvh; width: 100vw; margin: 0; 
-            overflow: hidden; position: fixed; background: #fff; 
-        }
+        :root { --snap: #FFFC00; --blue: #007AFF; --red: #FF3B30; --glass: rgba(255, 255, 255, 0.95); --font: -apple-system, system-ui, sans-serif; }
+        * { box-sizing: border-box; font-family: var(--font); margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body, html { height: 100dvh; width: 100vw; overflow: hidden; background: #000; position: fixed; }
 
-        /* MAP FIX - Standard high-visibility layout */
+        /* Map Rendering Fix */
         #map { position: absolute; inset: 0; z-index: 1; background: #f0f0f0; }
 
-        /* AUTH UI */
-        #auth-gate { 
-            position: fixed; inset: 0; z-index: 10000; background: var(--snap); 
-            display: flex; align-items: center; justify-content: center;
-        }
+        /* PREMUM AUTH UI */
+        #auth-gate { position: fixed; inset: 0; z-index: 20000; background: var(--snap); display: flex; align-items: center; justify-content: center; }
         .auth-card { width: 85%; max-width: 380px; text-align: center; }
-        .auth-card h1 { font-size: 70px; margin-bottom: 20px; }
-        input { 
-            width: 100%; padding: 20px; margin: 8px 0; border-radius: 15px; 
-            border: none; font-size: 16px; background: white; outline: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        }
-        .btn-black { 
-            width: 100%; padding: 20px; background: black; color: white; 
-            border-radius: 50px; border: none; font-weight: 900; cursor: pointer; 
-            margin-top: 10px; font-size: 18px; 
-        }
+        .auth-card h1 { font-size: 70px; margin-bottom: 30px; letter-spacing: -2px; }
+        input { width: 100%; padding: 20px; margin: 10px 0; border-radius: 18px; border: none; font-size: 18px; outline: none; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.05); font-weight: 600; }
+        .btn-black { width: 100%; padding: 20px; background: black; color: white; border-radius: 50px; border: none; font-weight: 900; cursor: pointer; margin-top: 15px; font-size: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
 
-        /* NAVIGATION */
-        .hud { 
-            position: absolute; top: env(safe-area-inset-top, 20px); 
-            width: 100%; z-index: 1000; display: flex; justify-content: center; pointer-events: none; 
-        }
-        .search-bar { 
-            background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); 
-            padding: 5px 20px; border-radius: 50px; display: flex; align-items: center; 
-            width: 90%; max-width: 450px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
-            pointer-events: auto; border: 1px solid #ddd;
-        }
-        .search-bar input { background: transparent; border: none; flex: 1; padding: 12px; font-size: 14px; }
+        /* HUD - SEARCH BAR */
+        .hud { position: absolute; top: env(safe-area-inset-top, 20px); width: 100%; z-index: 1000; display: flex; justify-content: center; pointer-events: none; }
+        .search-bar { background: var(--glass); backdrop-filter: blur(20px); padding: 5px 20px; border-radius: 50px; display: flex; align-items: center; width: 92%; max-width: 450px; box-shadow: 0 15px 40px rgba(0,0,0,0.15); pointer-events: auto; border: 1px solid #eee; }
+        .search-bar input { background: transparent; border: none; flex: 1; padding: 12px; font-size: 15px; font-weight: 600; }
 
-        /* SIDEBAR CHAT */
-        #sidebar { 
-            position: fixed; right: -100%; top: 0; bottom: 0; width: 380px; 
-            background: white; z-index: 5000; transition: 0.4s cubic-bezier(0.19, 1, 0.22, 1); 
-            display: flex; flex-direction: column; box-shadow: -10px 0 40px rgba(0,0,0,0.1);
-        }
+        /* MOBILE SIDEBAR CHAT */
+        #sidebar { position: fixed; right: -100%; top: 0; bottom: 0; width: 380px; background: white; z-index: 15000; transition: 0.4s cubic-bezier(0.19, 1, 0.22, 1); display: flex; flex-direction: column; box-shadow: -15px 0 50px rgba(0,0,0,0.1); }
         #sidebar.open { right: 0; }
-        .side-head { padding: 25px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .side-tools { display: flex; gap: 10px; padding: 15px 25px; background: #fafafa; }
-        .s-btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: 800; color: white; cursor: pointer; font-size: 12px; }
+        .side-head { padding: 30px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fff; }
+        .side-tools { display: flex; gap: 12px; padding: 15px 25px; background: #f9f9f9; }
+        .tool-btn { flex: 1; padding: 15px; border-radius: 15px; border: none; font-weight: 800; color: white; cursor: pointer; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
 
-        #msg-feed { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; background: #fff; }
-        .bubble { padding: 12px 18px; border-radius: 20px; font-size: 15px; max-width: 80%; line-height: 1.4; position: relative; background: #f0f0f0; color: #000; }
+        #msg-feed { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+        .bubble { padding: 14px 20px; border-radius: 24px; font-size: 15px; max-width: 80%; line-height: 1.4; position: relative; background: #efeff4; color: #000; }
         .bubble.me { align-self: flex-end; background: var(--blue); color: white; border-bottom-right-radius: 4px; }
-        .reply-meta { font-size: 11px; opacity: 0.5; margin-bottom: 4px; font-style: italic; }
+        .bubble.them { align-self: flex-start; border-bottom-left-radius: 4px; }
 
-        /* CALL MODAL */
-        #call-overlay { 
-            position: fixed; inset: 0; z-index: 9000; background: #000; 
-            display: none; flex-direction: column;
-        }
-        #jitsi-frame { width: 100%; height: 100%; border: none; }
-        .hangup-bar { 
-            position: absolute; bottom: 40px; width: 100%; 
-            display: flex; justify-content: center; pointer-events: none; 
-        }
-        .btn-hangup { 
-            background: var(--accent); color: white; padding: 15px 40px; 
-            border-radius: 50px; border: none; font-weight: 900; pointer-events: auto; cursor: pointer; 
-        }
-
-        /* NOTIFICATIONS */
-        #toast-hub { 
-            position: fixed; bottom: 30px; right: 20px; z-index: 9999; 
-            display: flex; flex-direction: column; gap: 10px; pointer-events: none; 
-        }
-        .toast { 
-            background: white; color: black; padding: 15px 25px; border-radius: 20px; 
-            font-weight: 800; box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
-            pointer-events: auto; animation: slideIn 0.3s ease; border-right: 6px solid var(--blue);
-        }
+        /* NOTIFICATIONS HUB (Bottom Right) */
+        #notif-center { position: fixed; bottom: 30px; right: 20px; z-index: 19000; display: flex; flex-direction: column; gap: 12px; align-items: flex-end; pointer-events: none; }
+        .toast { background: #fff; color: #000; padding: 18px 28px; border-radius: 20px; font-weight: 800; box-shadow: 0 15px 40px rgba(0,0,0,0.3); pointer-events: auto; animation: slideIn 0.4s ease; border-right: 8px solid var(--blue); width: 280px; }
         @keyframes slideIn { from { transform: translateX(110%); } to { transform: translateX(0); } }
 
-        /* MARKERS */
-        .marker-box { display: flex; flex-direction: column; align-items: center; }
-        .marker-dot { width: 10px; height: 10px; background: var(--accent); border: 2px solid white; border-radius: 50%; }
-        .marker-name { background: white; padding: 3px 10px; border-radius: 10px; font-weight: 900; font-size: 11px; margin-bottom: 3px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); color: #000; }
+        /* CALL HANDSHAKE OVERLAY */
+        #call-handshake { position: fixed; inset: 0; background: var(--blue); z-index: 21000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
+        .call-nick { font-size: 50px; margin: 30px 0; font-weight: 900; }
+        .call-btn-row { display: flex; gap: 20px; }
+        .c-btn { padding: 18px 45px; border-radius: 50px; border: none; font-weight: 900; cursor: pointer; font-size: 18px; }
+
+        /* JITSI FRAME */
+        #jitsi-box { position: fixed; inset: 0; z-index: 22000; background: #000; display: none; }
+        #j-frame { width: 100%; height: 100%; border: none; }
+
+        /* MAP MARKERS */
+        .avatar-pin { display: flex; flex-direction: column; align-items: center; }
+        .pin-circle { width: 12px; height: 12px; background: var(--red); border: 2px solid white; border-radius: 50%; box-shadow: 0 0 10px rgba(255,0,0,0.5); }
+        .pin-label { background: white; color: black; padding: 4px 12px; border-radius: 50px; font-weight: 900; font-size: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); white-space: nowrap; margin-bottom: 5px; }
 
         @media (max-width: 450px) { #sidebar { width: 100%; } }
         .hidden { display: none !important; }
+        .alert-flash { animation: flash 0.3s infinite; }
+        @keyframes flash { 0% { background: #000; } 50% { background: #300; } 100% { background: #000; } }
     </style>
 </head>
-<body>
+<body id="b">
 
 <div id="auth-gate">
     <div class="auth-card">
         <h1>👻</h1>
-        <input id="au-ph" type="tel" placeholder="Phone Number">
-        <input id="au-ni" type="text" placeholder="Nickname">
-        <input id="au-ps" type="password" placeholder="Password">
-        <button class="btn-black" onclick="handleAuth()">ENTER MAP</button>
+        <input id="ph" type="tel" placeholder="Phone Number">
+        <input id="ni" type="text" placeholder="Nickname">
+        <input id="ps" type="password" placeholder="Password">
+        <button class="btn-black" onclick="doAuth()">LOGIN</button>
     </div>
 </div>
 
-<div class="hud hidden" id="main-hud">
+<div class="hud hidden" id="ui-hud">
     <div class="search-bar">
-        <input id="f-inp" placeholder="Phone Number to Track">
-        <button onclick="addFriend()" style="background:none; border:none; color:var(--blue); font-weight:900; cursor:pointer">SYNC</button>
+        <input id="f-in" placeholder="Enter Friend Phone Number">
+        <button onclick="addF()" style="background:none; border:none; color:var(--blue); font-weight:900; font-size:14px;">SYNC</button>
     </div>
 </div>
 
 <div id="sidebar">
     <div class="side-head">
-        <h2 id="s-nick">Friend</h2>
-        <button onclick="closeSide()" style="background:none; border:none; font-size:30px; cursor:pointer">✕</button>
+        <h2 id="s-nick">User</h2>
+        <button onclick="closeSide()" style="background:none; border:none; font-size:35px">✕</button>
     </div>
     <div class="side-tools">
-        <button onclick="startCall()" class="s-btn" style="background:var(--blue)">START CALL</button>
-        <button onclick="sendAlert()" class="s-btn" style="background:var(--accent)">SEND ALERT</button>
+        <button onclick="reqCall()" class="tool-btn" style="background:var(--blue)">Voice Call</button>
+        <button onclick="sendAlert()" class="tool-btn" style="background:var(--red)">Send Alert</button>
     </div>
     <div id="msg-feed"></div>
-    <div style="padding:20px; display:flex; gap:10px; border-top:1px solid #eee; padding-bottom: 50px">
-        <input id="m-inp" onkeydown="if(event.key==='Enter') sendChat()" placeholder="Chat message..." style="flex:1; background:#f5f5f5; border-radius:15px; padding:15px; border:none; outline:none">
-        <button onclick="sendChat()" style="background:var(--snap); border:none; padding:0 20px; border-radius:15px; font-weight:900">SEND</button>
+    <div style="padding:20px; border-top:1px solid #eee; display:flex; gap:10px; padding-bottom: 50px">
+        <input id="m-in" onkeydown="if(event.key==='Enter') sendChat()" placeholder="Chat message..." style="flex:1; background:#f2f2f3; border-radius:20px; padding:18px; border:none; outline:none; font-weight:600">
+        <button onclick="sendChat()" style="background:var(--snap); border:none; padding:0 25px; border-radius:20px; font-weight:900">SEND</button>
     </div>
 </div>
 
-<div id="call-overlay">
-    <iframe id="jitsi-frame" allow="microphone; camera; autoplay; display-capture"></iframe>
-    <div class="hangup-bar">
-        <button class="btn-hangup" onclick="endCall()">HANG UP</button>
+<div id="call-handshake">
+    <h2 id="c-status">INCOMING CALL</h2>
+    <h1 id="c-nick" class="call-nick">...</h1>
+    <div class="call-btn-row">
+        <button class="c-btn" style="background:white; color:var(--red)" onclick="declCall()">DECLINE</button>
+        <button class="c-btn" style="background:white; color:var(--blue)" onclick="accCall()">ACCEPT</button>
     </div>
 </div>
 
-<div id="toast-hub"></div>
+<div id="jitsi-box">
+    <iframe id="j-frame" allow="microphone; camera; autoplay"></iframe>
+    <button onclick="hangup()" style="position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:var(--red); color:white; padding:15px 40px; border-radius:50px; border:none; font-weight:900; z-index:23000">END CALL</button>
+</div>
+
+<div id="notif-center"></div>
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    let ws, map, myPh, myNi, markers = {}, curF, chatHistory = {};
+    let ws, map, myPh, myNi, markers = {}, curF, history = {};
     const alertSnd = new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3');
+    const ringSnd = new Audio('https://assets.mixkit.co/active_storage/sfx/1350/1350-preview.mp3'); ringSnd.loop = true;
 
-    // Restore Cache on Start
+    // RESTORE SESSION
     window.onload = () => {
-        const cache = JSON.parse(localStorage.getItem('zenith_pro_auth'));
+        const cache = JSON.parse(localStorage.getItem('apex_auth'));
         if (cache) {
-            document.getElementById('au-ph').value = cache.p;
-            document.getElementById('au-ni').value = cache.n;
-            document.getElementById('au-ps').value = cache.s;
-            handleAuth();
+            document.getElementById('ph').value = cache.p;
+            document.getElementById('ni').value = cache.n;
+            document.getElementById('ps').value = cache.s;
+            doAuth();
         }
     };
 
-    function handleAuth() {
-        const p = document.getElementById('au-ph').value, n = document.getElementById('au-ni').value, s = document.getElementById('au-ps').value;
+    function doAuth() {
+        const p = document.getElementById('ph').value, n = document.getElementById('ni').value, s = document.getElementById('ps').value;
         if (!p || !n || !s) return;
         myPh = p; myNi = n;
-        localStorage.setItem('zenith_pro_auth', JSON.stringify({p, n, s}));
+        localStorage.setItem('apex_auth', JSON.stringify({p, n, s}));
         
         const proto = location.protocol === 'https:' ? 'wss' : 'ws';
         ws = new WebSocket(`${proto}://${location.host}/ws`);
         ws.onopen = () => {
             ws.send(JSON.stringify({type:'auth', phone:p, nick:n, pass:s}));
-            JSON.parse(localStorage.getItem('zenith_friends_list') || "[]").forEach(f => ws.send(JSON.stringify({type:'add_friend', target:f})));
+            JSON.parse(localStorage.getItem('apex_friends') || "[]").forEach(f => ws.send(JSON.stringify({type:'add_friend', target:f})));
         };
-        ws.onmessage = (e) => handleSignal(JSON.parse(e.data));
+        ws.onmessage = (e) => handleApex(JSON.parse(e.data));
     }
 
     function initMap() {
@@ -183,48 +154,49 @@
         setInterval(() => map.invalidateSize(), 1000);
     }
 
-    function handleSignal(d) {
+    function handleApex(d) {
         switch(d.type) {
             case 'auth_ok':
                 document.getElementById('auth-gate').style.display = 'none';
-                document.getElementById('main-hud').classList.remove('hidden');
+                document.getElementById('ui-hud').classList.remove('hidden');
                 initMap(); track(); break;
-            case 'loc': updateMarker(d); break;
+            case 'loc': updatePin(d); break;
             case 'chat':
                 const room = d.from === myPh ? d.target : d.from;
-                if (!chatHistory[room]) chatHistory[room] = [];
-                chatHistory[room].push(d);
+                if (!history[room]) history[room] = [];
+                history[room].push(d);
                 if (curF === room) renderChat();
                 if (d.from !== myPh && !document.getElementById('sidebar').classList.contains('open')) {
                     toast(d.fromNick, d.text, d.from, d.fromNick);
                 }
                 break;
-            case 'ring_alert': 
+            case 'alert': 
                 alertSnd.play(); 
-                toast("EMERGENCY", d.fromNick + " IS ALERTING YOU!", "");
-                break;
-            case 'call_invite':
-                if (confirm(`Accept Call from ${d.fromNick}?`)) {
-                    curF = d.from;
-                    joinCall(d.roomId);
-                }
-                break;
-            case 'note': toast("System", d.text, ""); break;
+                document.getElementById('b').classList.add('alert-flash');
+                setTimeout(() => document.getElementById('b').classList.remove('alert-flash'), 2000);
+                toast("EMERGENCY", d.fromNick + " IS ALERTING YOU!", ""); break;
+            case 'call_req':
+                window.room = d.roomId; window.caller = d.from;
+                document.getElementById('call-handshake').style.display = 'flex';
+                document.getElementById('c-nick').innerText = d.fromNick;
+                ringSnd.play(); break;
+            case 'call_accept':
+                ringSnd.pause(); openJitsi(d.roomId); break;
+            case 'call_decline':
+                ringSnd.pause(); document.getElementById('call-handshake').style.display='none'; alert("Call Declined"); break;
+            case 'call_hangup':
+                hangup(); break;
+            case 'note': toast("Zenith", d.text, ""); break;
         }
     }
 
-    function updateMarker(d) {
+    function updatePin(d) {
         if (d.phone === myPh) return;
         const pos = [d.lat, d.lng];
         if (!markers[d.phone]) {
-            const icon = L.divIcon({
-                className: 'marker-box', iconSize: [100, 30],
-                html: `<div class="marker-name">${d.nick}</div><div class="marker-dot"></div>`
-            });
+            const icon = L.divIcon({ className: 'avatar-pin', iconSize: [120, 40], html: `<div class="pin-label">${d.nick}</div><div class="pin-circle"></div>` });
             markers[d.phone] = L.marker(pos, {icon}).addTo(map).on('click', () => openSide(d.phone, d.nick));
-        } else {
-            markers[d.phone].setLatLng(pos);
-        }
+        } else markers[d.phone].setLatLng(pos);
     }
 
     function openSide(ph, ni) {
@@ -235,7 +207,7 @@
 
     function renderChat() {
         const box = document.getElementById('msg-feed'); box.innerHTML = "";
-        (chatHistory[curF] || []).forEach(m => {
+        (history[curF] || []).forEach(m => {
             const div = document.createElement('div');
             div.className = `bubble ${m.from === myPh ? 'me' : 'them'}`;
             div.innerText = m.text;
@@ -245,42 +217,58 @@
     }
 
     function sendChat() {
-        const i = document.getElementById('m-inp'); if(!i.value) return;
-        const p = {type:'chat', target:curF, text:i.value};
-        ws.send(JSON.stringify(p)); i.value = "";
+        const i = document.getElementById('m-in'); if(!i.value) return;
+        ws.send(JSON.stringify({type:'chat', target:curF, text:i.value}));
+        i.value = "";
     }
 
-    // --- CALLING (JITSI MEET) ---
-    function startCall() {
-        const roomName = "ZenithCall-" + Math.random().toString(36).substring(7);
-        ws.send(JSON.stringify({type:'call_invite', target: curF, roomId: roomName}));
-        joinCall(roomName);
+    // --- CALL HANDSHAKE FLOW ---
+    function reqCall() {
+        const room = "ZenApex-" + Math.random().toString(36).substring(7);
+        ws.send(JSON.stringify({type:'call_req', target: curF, roomId: room}));
+        document.getElementById('call-handshake').style.display = 'flex';
+        document.getElementById('c-status').innerText = "DIALING...";
+        document.getElementById('c-nick').innerText = document.getElementById('s-nick').innerText;
     }
 
-    function joinCall(room) {
-        document.getElementById('call-overlay').style.display = 'flex';
-        document.getElementById('jitsi-frame').src = `https://meet.jit.si/${room}#config.prejoinPageEnabled=false&interfaceConfig.TOOLBAR_BUTTONS=["microphone","camera","hangup"]`;
+    function accCall() {
+        ringSnd.pause();
+        ws.send(JSON.stringify({type:'call_accept', target: window.caller, roomId: window.room}));
+        openJitsi(window.room);
     }
 
-    function endCall() {
-        document.getElementById('call-overlay').style.display = 'none';
-        document.getElementById('jitsi-frame').src = "";
+    function declCall() {
+        ringSnd.pause();
+        ws.send(JSON.stringify({type:'call_decline', target: window.caller}));
+        document.getElementById('call-handshake').style.display='none';
+    }
+
+    function openJitsi(room) {
+        document.getElementById('call-handshake').style.display = 'none';
+        document.getElementById('jitsi-box').style.display = 'block';
+        document.getElementById('j-frame').src = `https://meet.jit.si/${room}#config.prejoinPageEnabled=false&interfaceConfig.TOOLBAR_BUTTONS=["microphone","camera"]`;
+    }
+
+    function hangup() {
+        ws.send(JSON.stringify({type:'call_hangup', target: curF || window.caller}));
+        document.getElementById('jitsi-box').style.display = 'none';
+        document.getElementById('j-frame').src = "";
     }
 
     function toast(t, m, ph, ni) {
         const d = document.createElement('div');
         d.className = 'toast'; d.innerHTML = `<strong>${t}</strong><br>${m}`;
         d.onclick = () => { if(ph) openSide(ph, ni); d.remove(); };
-        document.getElementById('toast-hub').appendChild(d);
+        document.getElementById('notif-center').appendChild(d);
         setTimeout(() => d.remove(), 6000);
     }
 
-    function addFriend() {
-        const v = document.getElementById('f-inp').value; if(!v) return;
-        const l = JSON.parse(localStorage.getItem('zenith_friends_list') || "[]");
-        if(!l.includes(v)) { l.push(v); localStorage.setItem('zenith_friends_list', JSON.stringify(l)); }
+    function addF() {
+        const v = document.getElementById('f-in').value; if(!v) return;
+        const l = JSON.parse(localStorage.getItem('apex_friends') || "[]");
+        if(!l.includes(v)) { l.push(v); localStorage.setItem('apex_friends', JSON.stringify(l)); }
         ws.send(JSON.stringify({type:'add_friend', target: v}));
-        document.getElementById('f-inp').value = "";
+        document.getElementById('f-in').value = "";
     }
 
     function track() {
